@@ -1,0 +1,339 @@
+# ---------------------------------------------------------------------------
+# Lending Monitor - configuration
+#
+# Everything you may want to tune lives here, so no number is buried in code.
+# This file grows in later phases (risk-score weights, classifier settings).
+#
+# All data described here is SYNTHETIC. Amounts are illustrative values in
+# Ugandan shillings (UGX), not researched statistics (see PRD question Q2).
+# ---------------------------------------------------------------------------
+
+project:
+  name: "FairLend Watch"                 # product name shown on every page (display only; not stored in the data)
+  tagline: "Lending conduct monitor"
+  # Fixed "today" for the synthetic world. Keeping it fixed means the same seed
+  # always gives the same data, whatever day you run it.
+  as_of_date: "2026-10-01"
+
+# Phase 5.2: how the app runs.
+app:
+  # Presentation mode: the app shows ONLY the demo dataset (whatever data/active_dataset.txt says),
+  # hides the dataset switcher and disables the Data and Review pages, so real data cannot appear
+  # on a projector by accident. The environment variable FAIRLEND_PRESENT wins over this setting
+  # (1/true/yes/on = on, 0/false/no/off = off). .\dev.ps1 -Present sets it for one run.
+  presentation_mode: false
+  log_file: "data/logs/app.log"   # unexpected page errors: exception type and code locations only, never data
+  log_max_bytes: 2000000          # the log rotates at this size...
+  log_backups: 3                  # ...keeping this many old files
+
+# Money (Phase 7A). Every amount in the data is a whole number of Ugandan shillings.
+# All money on screen, in exports and in plain-language explanations is written with src/money.py.
+currency:
+  code: "UGX"        # ISO 4217 code, stored in each dataset's meta table
+  symbol: "UGX"      # written before the amount: "UGX 1,500,000"
+  decimals: 0        # shillings have no minor unit in practice
+
+paths:                      # relative to the project folder
+  lending_db: "data/lending.db"           # what the detectors and dashboard read
+  ground_truth_db: "data/ground_truth.db" # answer labels, used ONLY to measure accuracy
+  manifest: "data/dataset_manifest.json"
+  predictions_db: "data/predictions.db"      # message labels from the classifiers (never written into lending.db)
+  local_model: "data/local_model.joblib"    # the trained local classifier
+  datasets_dir: "data/datasets"             # one folder per imported (real) dataset. Confidential: never commit it
+  active_dataset_file: "data/active_dataset.txt"  # name of the dataset the app and commands use (default: demo)
+
+generator:
+  seed: 42
+  n_borrowers: 5000
+  test_set_size: 400        # held-out labelled messages, balanced across the 4 classes
+  holdout_template_prob: 0.10  # share of messages written with held-out phrasings (see src/templates.py).
+                               # Only these can become test messages; the rest are 'dev'. Unused ones are 'reserve'.
+  min_lender_messages: 50   # a lender below this is "too small to rank". Tiny lenders must stay under it
+                            # (the generator stops with an error if one does not).
+  noise_rate: 0.15          # share of messages given typos or SMS shorthand
+  late_night:               # hours counted as "late night" (21:00 to 05:59)
+    start_hour: 21
+    end_hour: 6
+
+regions:                    # illustrative weights only
+  Central: 0.40
+  Western: 0.25
+  Eastern: 0.20
+  Northern: 0.15
+
+loans:
+  fee_rate_range: [0.10, 0.30]     # flat fee added to the principal
+  late_fee_range: [0.02, 0.15]     # extra owed when a loan is in arrears
+  arrears_partial_payment_prob: 0.25  # chance a borrower in arrears had paid part of the loan before it fell due
+  principal_min: 30000
+  principal_max: 3000000
+
+# How likely each lender size is to be picked for a loan (relative weights).
+# "micro" is deliberately tiny so the dashboard can be tested against a lender
+# with too few messages to rank fairly (PRD requirement FR-L2). A lender may also
+# have "max_loans", a hard cap on how many loans it ever gets (it can overshoot by 1).
+lender_sizes:
+  micro: 0.01
+  small: 0.40
+  medium: 1.50
+  large: 3.00
+
+# All names are fictional and end in "(Demo)" so they cannot be mistaken for real companies.
+lenders:
+  - {name: "Ridgeway Credit (Demo)",      size: large,  behaviour: clean}
+  - {name: "Lakeview Loans (Demo)",       size: large,  behaviour: borderline}
+  - {name: "Quickstep Cash (Demo)",       size: medium, behaviour: clean}
+  - {name: "Harvest Finance (Demo)",      size: medium, behaviour: clean}
+  - {name: "Sunbird Credit (Demo)",       size: medium, behaviour: abusive}
+  - {name: "Northgate Lending (Demo)",    size: medium, behaviour: borderline}
+  - {name: "Bluewater Cash (Demo)",       size: small,  behaviour: clean}
+  - {name: "Redstone Loans (Demo)",       size: small,  behaviour: abusive}
+  - {name: "Greenfield Credit (Demo)",    size: small,  behaviour: clean}
+  - {name: "Summit Quick Loans (Demo)",   size: small,  behaviour: abusive}
+  - {name: "Anchor Micro Credit (Demo)",  size: small,  behaviour: borderline}
+  - {name: "Pearl Finance (Demo)",        size: small,  behaviour: clean}
+  - {name: "Kestrel Instant Cash (Demo)", size: micro,  behaviour: abusive, max_loans: 5}
+
+# How each kind of lender talks to borrowers who are overdue.
+# class_probs must add up to 1. Classes: normal, firm_pressure, threat, shaming_third_party.
+lender_behaviour:
+  clean:
+    class_probs: {normal: 0.70, firm_pressure: 0.28, threat: 0.015, shaming_third_party: 0.005}
+    late_night_prob: 0.01
+    overdue_messages: [2, 5]       # messages per overdue loan (min, max)
+  borderline:
+    class_probs: {normal: 0.40, firm_pressure: 0.43, threat: 0.11, shaming_third_party: 0.06}
+    late_night_prob: 0.08
+    overdue_messages: [4, 9]
+  abusive:
+    class_probs: {normal: 0.15, firm_pressure: 0.30, threat: 0.33, shaming_third_party: 0.22}
+    late_night_prob: 0.30
+    overdue_messages: [8, 16]
+
+messages:
+  shaming_third_party_prob: 0.80   # share of shaming messages sent to someone other than the borrower
+  harassed_class_shift: 0.25       # how far a harassed borrower's messages lean toward the abusive style
+  harassed_volume_multiplier: 1.6
+  harassed_late_night_bonus: 0.20
+  # Harassed borrowers mostly borrowed from rougher lenders. Multiplies the chance of picking each kind.
+  harassed_lender_bias: {clean: 0.5, borderline: 1.5, abusive: 4.0}
+
+# The five borrower profiles from PRD section 8.2.
+#   mix                  share of all borrowers
+#   n_loans              how many loans (min, max)
+#   term_days            loan length in days (min, max)
+#   issue_days_ago       how long before "today" loans were issued (min, max days)
+#   arrears_prob         chance a loan that is past due is in arrears (otherwise repaid)
+#   income_median/sigma  monthly income, log-normal
+#   principal_ratio      typical principal as a share of monthly income
+#   distinct_lenders     true = every loan is from a different lender
+# The cycling profile builds a chain of loans, each funding the repayment of
+# the one before. issue_days_ago gives the start of the chain, the chain runs up to
+# "today" (so the borrower is still cycling), and n_loans[1] is only a safety cap.
+# Look-alikes hold several loans open at the same time (like stacked borrowers) but
+# earn a lot and owe little, so the number of lenders alone cannot tell them apart.
+profiles:
+  typical:
+    mix: 0.70
+    n_loans: [1, 2]
+    term_days: [14, 90]
+    issue_days_ago: [0, 300]
+    arrears_prob: 0.04
+    income_median: 650000
+    income_sigma: 0.55
+    principal_ratio: 0.35
+    distinct_lenders: false
+  stacked:
+    mix: 0.10
+    n_loans: [3, 6]
+    term_days: [14, 45]
+    issue_days_ago: [5, 50]
+    arrears_prob: 0.55
+    income_median: 380000
+    income_sigma: 0.35
+    principal_ratio: 0.40
+    distinct_lenders: true
+  cycling:
+    mix: 0.05
+    n_loans: [3, 6]
+    term_days: [21, 35]
+    issue_days_ago: [90, 135]
+    arrears_prob: 0.25
+    income_median: 420000
+    income_sigma: 0.35
+    principal_ratio: 0.45
+    distinct_lenders: true
+  harassed:
+    mix: 0.08
+    n_loans: [2, 4]
+    term_days: [14, 45]
+    issue_days_ago: [30, 150]
+    arrears_prob: 0.75
+    income_median: 450000
+    income_sigma: 0.40
+    principal_ratio: 0.35
+    distinct_lenders: true
+  look_alike:
+    mix: 0.07
+    n_loans: [3, 5]
+    term_days: [30, 90]
+    issue_days_ago: [5, 40]
+    arrears_prob: 0.02
+    income_median: 2200000
+    income_sigma: 0.30
+    principal_ratio: 0.08
+    distinct_lenders: true
+
+# ---------------------------------------------------------------------------
+# Phase 2: borrower risk score (src/overlap.py)
+#
+# The score prompts a human to look at a borrower. It is never a verdict.
+# Each signal gets a strength from 0 to 1 (1 once it reaches its full_at value),
+# multiplied by its weight. The weights add up to 100, so the score runs 0-100.
+# These values were set before looking at evaluation results. Do not tune them on
+# the ground truth.
+# ---------------------------------------------------------------------------
+risk:
+  weights: {open_lenders: 25, debt_to_income: 30, arrears: 20, cycling: 15, loan_velocity: 10}   # must add up to 100
+  # The value at which each signal earns its full weight. open_lenders counts from 1:
+  # one lender scores 0, and full_at lenders score the full weight.
+  full_at: {open_lenders: 5, debt_to_income: 2.0, arrears: 1.0, cycling_events: 3, loans_in_window: 4}
+  # A "cycling event" is a new loan issued within match_days of the borrower repaying a
+  # DIFFERENT loan. Only loans issued in the last lookback_days count.
+  cycling: {match_days: 2, lookback_days: 180}
+  velocity_window_days: 60       # loans issued in this many days count toward loan_velocity
+  bands: {medium: 35, high: 60}  # score >= medium -> medium band, score >= high -> high band
+  # Decision made on the team's behalf (switchable): repeated cycling is a warning sign even when
+  # the debt looks small, so a borrower with at least cycling_minimum_events is never left in "low".
+  cycling_forces_minimum_band: true
+  cycling_minimum_events: 3
+
+# Which ground-truth profiles count as "should be flagged" when measuring accuracy.
+# Used ONLY by src/evaluate_overlap.py. Decision made on the team's behalf (switchable).
+evaluation:
+  positive_profiles: [stacked, cycling, harassed]
+  negative_profiles: [typical, look_alike]
+
+# ---------------------------------------------------------------------------
+# Phase 3: message classifier (src/classify_local.py, later src/classify_gemini.py)
+#
+# Classes: normal, firm_pressure, threat, shaming_third_party.
+# Training and tuning use ONLY messages whose split is 'dev'. Never tune on 'test' or 'reserve'.
+# ---------------------------------------------------------------------------
+classifier:
+  primary: local          # local or gemini: which labels the lender comparison uses
+  local:
+    ngram_range: [1, 2]   # word unigrams and bigrams
+    min_df: 2             # ignore words seen in fewer than this many messages
+    c: 4.0                # inverse regularisation strength of the logistic regression
+    class_weight: balanced
+    seed: 42
+    # Replace lender brand names with one placeholder word before training and predicting.
+    # Without this the model can learn "this lender's name means threat", and the lender
+    # comparison would partly echo the lender's identity instead of what its messages say.
+    mask_lender_names: true
+  # Phase 3B: a SECOND OPINION from Gemini on the demo's synthetic TEST split only
+  # (python -m src.gemini_check). Never used in the app, for training, or on real data.
+  gemini:
+    # Current free-tier Flash model as known when this was written. NOT checked online
+    # (no network from here): confirm the name in Google AI Studio before running.
+    model: "gemini-2.5-flash"
+    batch_size: 20               # distinct texts per request
+    temperature: 0
+    max_retries: 4               # retries per request on 429 / 5xx, with exponential backoff
+    backoff_base_seconds: 5      # waits 5, 10, 20, 40 s ...
+    requests_per_minute: 10      # free-tier pace: at least 60/rpm seconds between calls
+    delay_seconds: 7             # ...and never less than this between calls
+    max_calls: 40                # hard cap on API calls in one run (retries count too)
+    daily_request_budget: 200    # kept from Phase 3; the per-run cap above is what the code enforces
+    prompt_version: "v1"         # part of every cache key: change it when the prompt changes
+    cache_file: "data/gemini_cache.json"          # answers by hash; labels only, no message text
+    report_file: "data/gemini_check_report.csv"   # per phrasing: truth vs local vs Gemini (synthetic text)
+    summary_file: "data/gemini_check_summary.json"  # counts only, read by the About page
+  # Phase 5.1: a person checks the labels on real data (src/review.py, pages/6_Review.py).
+  # Human labels are NOT answer labels: they live in the dataset's own predictions.db.
+  review:
+    sample_size_default: 50        # messages per review batch
+    min_reviewed_to_retrain: 60    # human labels needed before retraining on a dataset
+    min_per_class: 5               # ...and at least this many of EACH of the four classes
+    include_demo_in_retrain: true  # also train on the demo's dev messages (synthetic) when they are there
+    demo_weight: 0.3               # weight of each demo message; each human label weighs 1
+    cv_folds: 5                    # stratified cross-validation folds, on the human labels only
+    show_prediction_before_label: false  # hide the model's guess until the reviewer has picked a label (no anchoring)
+    confidence: 0.95               # level of the Wilson intervals around measured accuracy and recall
+    min_for_accuracy: 20           # randomly checked messages needed before accuracy is reported at all
+    small_sample_warning: 200      # below this many human labels, results carry a "small sample" warning
+    seed: 2026                     # fixed seed for drawing review batches (same state + seed = same batch)
+
+# Lender comparison (src/lender_comparison.py). The minimum number of messages a lender
+# needs before it is ranked is generator.min_lender_messages (not repeated here).
+lender_comparison:
+  abusive_classes: [threat, shaming_third_party]
+  confidence: 0.95        # level of the Wilson interval around each lender's abusive share
+
+# ---------------------------------------------------------------------------
+# Phase 4: dashboard (app.py, pages/, src/dashboard_data.py)
+# The dashboard reads lending.db and predictions.db only. Flags prompt a human to look.
+# ---------------------------------------------------------------------------
+dashboard:
+  top_n: 10                       # rows in "highest risk" lists
+  example_messages_per_class: 5   # message examples shown per lender and class
+  table_page_size: 25             # rows per page in the borrower table
+  # Overview headline: borrowers in the medium or high band who ALSO received at least
+  # this many messages labelled abusive (lender_comparison.abusive_classes).
+  concern_min_abusive_messages: 3
+  example_seed: 7                 # fixed seed for picking example messages (same examples every run)
+
+# Featured cases for the Guided Demo page (Phase 5.2). Picked BY RULES FROM COMPUTED SIGNALS ONLY
+# (scores, bands, message labels), never from answer labels. Ties go to the lowest id.
+demo:
+  many_lenders_min_open: 4        # case 3: at least this many open lenders...
+  many_lenders_max_dti: 0.5       # ...but debt below this multiple of monthly income, and not in the high band
+  harassed_min_abusive: 1         # case 4: at least this many abusive messages (the most wins)...
+  # ...and at least one late-night or third-party message
+
+# ---------------------------------------------------------------------------
+# Phase 4B: bringing in your own data (src/import_data.py, pages/5_Data.py)
+# The demo (synthetic) dataset is the files in 'paths' above. Real datasets live in
+# paths.datasets_dir, one folder each. Real data is confidential.
+# ---------------------------------------------------------------------------
+onboarding:
+  redact_by_default: true   # redact message text on import (what is redacted: see 'privacy' below)
+  day_first_default: true   # "Dates in my files are day/month/year" starts ticked (Uganda writes the day first)
+  example_id_prefix: "EXAMPLE"  # template example rows use ids starting with this; importing them is an error
+
+# ---------------------------------------------------------------------------
+# Phase 5.1: redaction of message text on import (src/redaction.py)
+# Replacements: [EMAIL], [ID], [PHONE], [NAME]. Applied in that order.
+# Names CANNOT be detected automatically: only names in name_list_file are removed.
+# ---------------------------------------------------------------------------
+privacy:
+  redact_emails: true
+  redact_ids: true
+  redact_phones: true
+  redact_names: true        # only has an effect if name_list_file exists
+  phone_min_digits: 9       # any unbroken run of at least this many digits counts as a phone or ID number
+  # Ugandan national ID number (NIN). Matched without regard to letter case; a space or a dash
+  # may sit between any two characters after the prefix.
+  # VERIFIED (2026-10-13): the NIN starts with CM or CF (several guides agree; a public API's
+  #   example value is "CM123456789AB": CM, 9 digits, 2 letters).
+  # NOT VERIFIED: the total length. Sources disagree (13 or 14 characters) and no official NIRA
+  #   specification was found. So 13 AND 14 characters are accepted (11 or 12 after the prefix),
+  #   and at least id_min_digits of them must be digits, so ordinary words are not caught.
+  id_patterns:
+    # Python regular expressions, matched without regard to letter case, never inside a longer word.
+    - name: uganda_nin
+      pattern: "C[MF](?:[ -]?[A-Z0-9]){11,12}"
+  id_min_digits: 5
+  # A run of letters/digits (with at least one digit) right after one of these words is an ID: "NIN: CF12 3456".
+  id_keywords: ["NIN", "ID number", "ID no", "ID #", "national ID", "ID card number"]
+  name_list_file: "data/redaction_names.txt"   # one name per line; whole words, any letter case -> [NAME]. Never commit it.
+  possible_names:           # "Possible names" helper on the Data page: frequent capitalised words to check by eye
+    top_n: 30
+    stop_words: [Dear, Hello, Hi, Mr, Mrs, Ms, Madam, Sir, Please, Pay, Your, You, We, Our, The, This, Today,
+                 Tomorrow, Reminder, Final, Notice, Thank, Thanks, Kindly, Loan, Customer, Client, Agent, Call,
+                 Contact, Account, Balance, Payment, Mobile, Money, UGX, Ush, Shs,
+                 Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday,
+                 Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Sept, Oct, Nov, Dec,
+                 January, February, March, April, June, July, August, September, October, November, December,
+                 Uganda, Kampala]

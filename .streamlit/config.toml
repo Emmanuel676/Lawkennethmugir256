@@ -1,0 +1,7 @@
+# Streamlit settings for the FairLend Watch dashboard.
+# The dashboard must never use the network: no usage statistics, and only this computer can open it.
+[browser]
+gatherUsageStats = false
+
+[server]
+address = "localhost"

@@ -1,0 +1,66 @@
+# FairLend Watch - what Git must never pick up.
+# Rule of thumb: code, config, docs, tests and assets are committed; everything under data/
+# is rebuilt (python -m src.build_all) or is real and confidential, so it never is.
+
+# --- Secrets ---------------------------------------------------------------------------------
+# The Gemini key lives only in the GEMINI_API_KEY environment variable. Never commit a key file.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+# Borrower-code salt/pepper. src/make_borrower_codes.py asks for the salt at a hidden prompt and
+# never saves it; these patterns only catch a salt someone saved by hand.
+*salt*
+*pepper*
+!src/make_borrower_codes.py
+
+# --- Python and tools ------------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.claude/settings.local.json
+
+# --- Data: generated demo, real datasets, logs, caches ----------------------------------------------
+# Everything in data/ except the empty placeholder. The demo is rebuilt from config.yaml + seed.
+data/*
+!data/.gitkeep
+# The same file types anywhere else (a database or export saved outside data/ by mistake).
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.joblib
+# Outputs and exports: scores, comparisons, flagged-borrower and reviewed-label downloads,
+# the Gemini report, coded borrower files, real workbooks and import CSVs.
+*.csv
+*.xlsx
+*.xls
+borrower_scores.csv
+lender_comparison.csv
+flagged_borrowers*.csv
+reviewed_labels*.csv
+gemini_cache.json
+gemini_check_report.csv
+gemini_check_summary.json
+# Names to redact from real message text (personal data).
+redaction_names.txt
+# Logs (data/logs/ is already covered above).
+*.log
+logs/
+
+# --- Editor and OS files -------------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

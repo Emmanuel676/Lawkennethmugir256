@@ -8,7 +8,9 @@ them, using a view across lenders that no single lender has.
 
 > **All data in this project is synthetic.** It describes no real people, loans,
 > lenders or messages. Lender names are fictional and end in "(Demo)".
-> Amounts are illustrative UGX values, not researched statistics.
+> All amounts are in **Ugandan shillings (UGX)**, whole shillings: illustrative values,
+> not researched statistics. Real data must only be loaded with permission, and the
+> privacy rules below (redaction, nothing leaves this computer) always apply.
 
 The full requirements are in the PRD (Word document, v0.2). Phases 1, 2, 4, 4B (bringing your own data) and 5 (5.1 ready for real field data; 5.2 demo readiness: presentation mode, guided demo, preflight, edge cases) are done, and Phase 3 is done: Part A (local classifier and lender comparison) and Part B (a Gemini second opinion on the synthetic test set; you run the real call). See `CHANGES.md`.
 
@@ -758,6 +760,36 @@ python -m src.gemini_check --dataset demo
 Remove-Item Env:GEMINI_API_KEY            # forget the key when done
 ```
 
+## Try a message (Phase 8A)
+
+At the bottom of the **Lenders** page you can type one message and see the class the
+local model would give it, with its probability for each of the four classes. It uses
+the active dataset's own retrained model if there is one, otherwise the saved model
+trained on the demo's synthetic text. Lender names are masked exactly as in training.
+What you type is **not stored, not logged and not added to any dataset**: the box is
+emptied as soon as the message is labelled. The box is hidden in presentation mode.
+A label is a prompt for a human to look, never a verdict.
+
+## Getting the code and rebuilding the demo
+
+The repository holds code, configuration, documents, tests and logos only. **No data is
+committed**: everything under `data\` is either rebuilt from `config.yaml` and the seed,
+or is real and confidential (see `.gitignore`). On a fresh clone:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m src.build_all        # rebuilds the demo dataset, labels, model, scores and comparison
+python -m src.preflight        # every check must say PASS
+streamlit run app.py
+```
+
+## License
+
+**Not decided yet.** Until a license is chosen, nobody else has the right to use, copy
+or change this code. See the question in `CHANGES.md` (Phase 8A).
+
 ## Decisions made in Phase 1 (please confirm)
 
 1. **Two database files instead of one.** The PRD asks for a single database
@@ -778,4 +810,3 @@ This tool is meant to support a human analyst, never to make an enforcement
 decision. Real borrower data must not be used without legal clearance, and must
 never be sent to the Gemini free tier, where Google may use submitted content to
 improve its products.
-# Lawkennethmugir256
