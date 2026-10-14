@@ -145,15 +145,17 @@ def _run(page, config_path, monkeypatch):
 def test_overview_and_borrower_pages_show_ugx(world, monkeypatch):
     cfg, config_path = world
     at = _run("app.py", config_path, monkeypatch)
-    owed = next(m.value for m in at.metric if m.label == "Owed by high-band borrowers")
-    assert re.fullmatch(r"UGX \d{1,3}(,\d{3})*", owed)
+    tile = next(m for m in at.metric if m.label == "Owed by high-band borrowers")
+    assert re.fullmatch(r"UGX \d{1,3}(\.\d)?[KMB]?", tile.value)  # compact, so it is never cut off
+    assert re.fullmatch(r"Exact amount: UGX \d{1,3}(,\d{3})*", tile.help)  # ...with the exact amount in the help
     assert "Total owed (UGX)" in at.dataframe[0].value.columns
 
     at = _run("pages/1_Borrowers.py", config_path, monkeypatch)
     first = at.dataframe[0].value["Borrower"].iloc[0]
     at.selectbox(key="borrower_pick").set_value(first).run()
     for label in ("Total owed", "Monthly income"):
-        assert next(m.value for m in at.metric if m.label == label).startswith("UGX ")
+        tile = next(m for m in at.metric if m.label == label)
+        assert tile.value.startswith("UGX ") and tile.help.startswith("Exact amount: UGX ")
     loans = next(d.value for d in at.dataframe if "principal (UGX)" in d.value.columns)
     assert "owed (UGX)" in loans.columns
 

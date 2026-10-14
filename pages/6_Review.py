@@ -41,8 +41,9 @@ with guarded("Review"):
     # --- Progress and measured accuracy ----------------------------------------------------------------------------
     state = progress(paths)
     row = st.columns(4)
-    row[0].metric("Messages reviewed", f"{state['reviewed']:,} of {state['messages']:,}", f"{state['share_reviewed']:.1%}",
-                  delta_color="off")
+    # The total goes under the number, so a long "12,345 of 26,780" is never cut off in a narrow tile.
+    row[0].metric("Messages reviewed", f"{state['reviewed']:,}",
+                  f"of {state['messages']:,} ({state['share_reviewed']:.1%})", delta_color="off")
     row[1].metric("Random check", f"{state['per_batch']['random']:,}")
     row[2].metric("Hard cases", f"{state['per_batch']['hard']:,}")
     row[3].metric("Labels checked by a person", f"{data.human_share:.1%}")

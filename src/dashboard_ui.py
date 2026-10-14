@@ -58,12 +58,37 @@ def brand_images(assets_dir: Path = ASSETS_DIR) -> dict[str, Path]:
     return found
 
 
-def _theme() -> str:
-    """'dark' or 'light' (the viewer's current theme; 'light' if it cannot be told)."""
+# Text and track colours for charts, per theme (Streamlit's own body-text colours). Lines and bars use
+# colours chosen to keep at least 3:1 contrast on BOTH backgrounds, so they need no theme at all.
+CHART_TEXT = {"light": "#31333F", "dark": "#FAFAFA"}
+CHART_TRACK = {"light": "#D5DAE3", "dark": "#3D4150"}
+CHART_BAR = "#4C78A8"       # 4.6:1 on white, 4.1:1 on the dark page
+CHART_INTERVAL = "#D97706"  # 3.2:1 on white, 5.9:1 on the dark page
+
+
+def theme_type() -> str | None:
+    """The viewer's theme as Streamlit reports it ('light', 'dark' or None). Never raises.
+
+    Streamlit 1.65 says this can be wrong on the very first run of a session and right after the viewer
+    changes theme; it is right again on the next run. config.toml makes light the default theme.
+    """
     try:
-        return "dark" if st.context.theme.type == "dark" else "light"
+        value = st.context.theme.type
     except Exception:
-        return "light"
+        return None
+    return value if value in ("light", "dark") else None
+
+
+def _theme() -> str:
+    """'dark' only when Streamlit clearly says dark; otherwise 'light' (also when it cannot be told)."""
+    return "dark" if theme_type() == "dark" else "light"
+
+
+def pick_logo(theme: str | None, images: dict[str, Path]) -> Path | None:
+    """The wide logo for a theme: dark TEXT ('light' file) on a light theme, pale text ('dark' file) on a
+    dark theme. An unknown theme gets the light-theme logo, because light is the default theme."""
+    wanted = "dark" if theme == "dark" else "light"
+    return images.get(wanted) or images.get("light") or images.get("dark")
 
 
 def show_logo(assets_dir: Path = ASSETS_DIR) -> bool:
@@ -72,7 +97,7 @@ def show_logo(assets_dir: Path = ASSETS_DIR) -> bool:
     Never raises: with missing or unreadable files the page simply has no logo. Returns True if shown.
     """
     images = brand_images(assets_dir)
-    wide = images.get(_theme()) or images.get("light") or images.get("dark")
+    wide = pick_logo(theme_type(), images)
     if wide is None:
         return False
     try:
@@ -308,8 +333,8 @@ def band_chart(distribution: pd.DataFrame) -> alt.Chart:
         y=alt.Y("borrowers:Q", title="Borrowers"),
         tooltip=["band", "borrowers"],
     )
-    bars = base.mark_bar(color="#4c78a8")
-    labels = base.mark_text(dy=-6).encode(text=alt.Text("borrowers:Q", format=","))
+    bars = base.mark_bar(color=CHART_BAR)
+    labels = base.mark_text(dy=-6, color=CHART_TEXT[_theme()]).encode(text=alt.Text("borrowers:Q", format=","))
     return (bars + labels).properties(height=260)
 
 
@@ -322,25 +347,26 @@ def lender_interval_chart(ranked: pd.DataFrame) -> alt.Chart:
         high=ranked["abusive_high"] * 100,
     )
     order = frame["label"].tolist()
-    y = alt.Y("label:N", sort=order, title=None)
-    bars = alt.Chart(frame).mark_bar(color="#9ecae9").encode(
+    y = alt.Y("label:N", sort=order, title=None, axis=alt.Axis(labelLimit=170))  # long names fit on a phone
+    bars = alt.Chart(frame).mark_bar(color=CHART_BAR, opacity=0.55).encode(
         x=alt.X("share:Q", title="Messages labelled abusive (%)"), y=y,
         tooltip=[alt.Tooltip("name:N", title="Lender"), alt.Tooltip("share:Q", format=".1f", title="Abusive %"),
                  alt.Tooltip("low:Q", format=".1f", title="Interval low %"),
                  alt.Tooltip("high:Q", format=".1f", title="Interval high %"),
                  alt.Tooltip("n_messages:Q", format=",", title="Messages")])
-    interval = alt.Chart(frame).mark_rule(color="black", strokeWidth=2).encode(x="low:Q", x2="high:Q", y=y)
-    ends = alt.Chart(frame).mark_tick(color="black", thickness=2, size=10).encode(x="low:Q", y=y)
+    interval = alt.Chart(frame).mark_rule(color=CHART_INTERVAL, strokeWidth=3).encode(x="low:Q", x2="high:Q", y=y)
+    ends = alt.Chart(frame).mark_tick(color=CHART_INTERVAL, thickness=3, size=12).encode(x="low:Q", y=y)
     return (bars + interval + ends).properties(height=max(200, 28 * len(frame)))
 
 
 def points_chart(points: pd.DataFrame) -> alt.Chart:
     """Points earned per signal (dark) against the maximum for that signal (light)."""
     y = alt.Y("signal:N", sort=points["signal"].tolist(), title=None)
-    maximum = alt.Chart(points).mark_bar(color="#dddddd").encode(x=alt.X("max_points:Q", title="Points"), y=y)
-    earned = alt.Chart(points).mark_bar(color="#4c78a8").encode(
+    maximum = alt.Chart(points).mark_bar(color=CHART_TRACK[_theme()]).encode(
+        x=alt.X("max_points:Q", title="Points"), y=y)
+    earned = alt.Chart(points).mark_bar(color=CHART_BAR).encode(
         x="points:Q", y=y, tooltip=["signal", "points", "max_points"])
-    labels = alt.Chart(points).mark_text(align="left", dx=4).encode(
+    labels = alt.Chart(points).mark_text(align="left", dx=4, color=CHART_TEXT[_theme()]).encode(
         x="max_points:Q", y=y, text=alt.Text("points:Q", format=".1f"))
     return (maximum + earned + labels).properties(height=200)
 
@@ -350,18 +376,22 @@ def timeline_chart(timeline: pd.DataFrame) -> alt.Chart:
     return alt.Chart(timeline).mark_bar(height=14).encode(
         x=alt.X("issue_date:T", title="Issue date to due date"),
         x2="due_date:T",
-        y=alt.Y("loan:N", sort=timeline["loan"].tolist(), title=None),
+        y=alt.Y("loan:N", sort=timeline["loan"].tolist(), title=None, axis=alt.Axis(labelLimit=200)),
         tooltip=["loan", "lender", "status", alt.Tooltip("issue_date:T"), alt.Tooltip("due_date:T")],
     ).properties(height=max(120, 32 * len(timeline)))
 
 
-def light_logo_image(width: int = 380, assets_dir: Path = ASSETS_DIR) -> bool:
-    """Show the light-background logo as a picture in the page (About page). Never raises."""
-    light = brand_images(assets_dir).get("light")
-    if light is None:
+def logo_image(width: int = 380, assets_dir: Path = ASSETS_DIR) -> bool:
+    """Show the wide logo as a picture in the page (About page), matched to the theme. Never raises."""
+    wide = pick_logo(theme_type(), brand_images(assets_dir))
+    if wide is None:
         return False
     try:
-        st.image(str(light), width=width)
+        st.image(str(wide), width=width)
         return True
     except Exception:
         return False
+
+
+# Kept for older callers; the About page now uses logo_image(), which follows the theme.
+light_logo_image = logo_image

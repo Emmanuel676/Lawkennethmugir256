@@ -5,3 +5,7 @@
 # (dev.ps1 does this; the README's commands do too).
 [browser]
 gatherUsageStats = false
+
+# Light is the default theme for every new visitor; viewers can still switch in Settings.
+[theme]
+base = "light"

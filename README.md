@@ -761,6 +761,20 @@ python -m src.gemini_check --dataset demo
 Remove-Item Env:GEMINI_API_KEY            # forget the key when done
 ```
 
+## Look and feel (Phase 8C)
+
+- **Light theme by default** (`[theme] base = "light"` in `.streamlit/config.toml`). Viewers
+  can still switch to dark in Settings.
+- **Logo per theme:** dark text (`fairlend-watch-logo-light.svg`) on a light theme, pale text
+  (`fairlend-watch-logo-dark.svg`) on a dark theme. When the theme cannot be read, the
+  light-theme logo is used. Streamlit can misreport the theme on a session's very first run
+  and right after a theme switch; the logo corrects itself on the next interaction.
+- **Charts read on both themes:** the bars and the orange confidence-interval line keep at
+  least 3:1 contrast on white and on the dark background, and labels follow the theme.
+- **Money tiles never get cut off:** large amounts use a short form (`UGX 259.8M`), and the
+  exact amount is in the tile's help (the `?` next to it). Tables and downloads keep exact
+  amounts.
+
 ## Try a message (Phase 8A)
 
 At the bottom of the **Lenders** page you can type one message and see the class the

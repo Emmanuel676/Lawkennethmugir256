@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.dashboard_data import class_table, gemini_summary, signal_weights
-from src.dashboard_ui import guarded, light_logo_image, page_setup
+from src.dashboard_ui import guarded, logo_image, page_setup
 from src.datasets import presentation_mode
 
 with guarded("About"):
@@ -14,7 +14,7 @@ with guarded("About"):
 
     name, tagline = cfg["project"]["name"], cfg["project"]["tagline"]
 
-    light_logo_image()
+    logo_image()
     st.subheader(f"What {name} does")
     st.markdown(
         f"**{name}** ({tagline.lower()}) gives a regulator or consumer body a view **across lenders** that no single "

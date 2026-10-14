@@ -42,12 +42,16 @@ def _metric(at: AppTest, label: str) -> str:
     return next(m.value for m in at.metric if m.label == label)
 
 
+def _delta(at: AppTest, label: str) -> str:
+    return next(m.delta for m in at.metric if m.label == label)
+
+
 def test_review_page_labels_a_message_and_progress_changes(world):
     set_active(world, "field-a")
     at = _run("pages/6_Review.py")
     assert not at.exception, [e.value for e in at.exception]
     assert any(e.value == "REAL DATA - Field A. Confidential." for e in at.error)
-    assert _metric(at, "Messages reviewed") == "0 of 12"
+    assert _metric(at, "Messages reviewed") == "0" and _delta(at, "Messages reviewed") == "of 12 (0.0%)"
     assert any("Only 0 randomly checked message(s) so far" in m.value for m in at.markdown)
     assert any("normal**: Neutral reminder" in m.value for m in at.markdown)  # each class explained
     assert any("[About page](/About)" in e.label for e in at.expander)
@@ -60,13 +64,13 @@ def test_review_page_labels_a_message_and_progress_changes(world):
 
     at.button(key="label_threat").click().run()
     assert not at.exception, [e.value for e in at.exception]
-    assert _metric(at, "Messages reviewed") == "1 of 12"
+    assert _metric(at, "Messages reviewed") == "1" and _delta(at, "Messages reviewed") == "of 12 (8.3%)"
     assert _metric(at, "Random check") == "1"
     assert any(s.value.startswith("Saved as threat. The model") for s in at.success)
     assert any("Message 2 of 12" in m.value for m in at.markdown)
 
     at.button(key="label_skip").click().run()  # skipped: not stored
-    assert _metric(at, "Messages reviewed") == "1 of 12"
+    assert _metric(at, "Messages reviewed") == "1" and _delta(at, "Messages reviewed") == "of 12 (8.3%)"
     assert any("Message 3 of 12" in m.value for m in at.markdown)
 
     state = progress(get_dataset_paths(world, "field-a"))

@@ -7,7 +7,7 @@ import streamlit as st
 from src.dashboard_data import (BANDS, SORT_OPTIONS, borrower_detail, borrower_table, filter_borrowers, page_count,
                                 page_slice, sort_borrowers)
 from src.dashboard_ui import guarded, page_setup, points_chart, take_focus, timeline_chart
-from src.money import format_money, money_label
+from src.money import format_money, format_money_compact, money_label
 
 with guarded("Borrowers"):
     data, cfg = page_setup("Borrowers")
@@ -62,8 +62,10 @@ with guarded("Borrowers"):
     cols[0].metric("Score", f"{row['score']:.1f}")
     cols[1].metric("Band", str(row["band"]))
     cols[2].metric("Open lenders", int(row["open_lenders"]))
-    cols[3].metric("Total owed", format_money(row["total_owed"], cfg))
-    cols[4].metric("Monthly income", format_money(row["monthly_income"], cfg))
+    cols[3].metric("Total owed", format_money_compact(row["total_owed"], cfg),
+                   help=f"Exact amount: {format_money(row['total_owed'], cfg)}")
+    cols[4].metric("Monthly income", format_money_compact(row["monthly_income"], cfg),
+                   help=f"Exact amount: {format_money(row['monthly_income'], cfg)}")
     st.caption(f"Region {row['region']}. Debt is {row['debt_to_income']:.2f} times monthly income; "
                f"{row['arrears_share']:.0%} of it is in arrears.")
     if bool(row["band_forced_by_cycling"]):

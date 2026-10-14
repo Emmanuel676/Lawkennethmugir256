@@ -16,7 +16,7 @@ import streamlit as st
 from src.dashboard_data import (band_distribution, coverage_sentence, overview_kpis, ranked_lenders,
                                 top_borrowers)
 from src.dashboard_ui import band_chart, guarded, lender_interval_chart, page_setup
-from src.money import format_money, money_label
+from src.money import format_money, format_money_compact, money_label
 
 with guarded("Overview"):
     data, cfg = page_setup("Overview")
@@ -32,7 +32,8 @@ with guarded("Overview"):
         column.metric(f"Band: {band}", f"{kpis['band_counts'][band]:,}", f"{kpis['band_shares'][band]:.1%} of borrowers",
                       delta_color="off")
     row2 = st.columns(4)
-    row2[0].metric("Owed by high-band borrowers", format_money(kpis["owed_by_high_band"], cfg))
+    row2[0].metric("Owed by high-band borrowers", format_money_compact(kpis["owed_by_high_band"], cfg),
+                   help=f"Exact amount: {format_money(kpis['owed_by_high_band'], cfg)}")
     row2[1].metric("Messages classified", f"{kpis['messages_classified']:,}",
                    f"{kpis['abusive_message_share']:.1%} labelled abusive", delta_color="off")
     row2[2].metric("Lenders ranked", f"{kpis['lenders_ranked']}", f"{kpis['lenders_unranked']} too small to rank",
@@ -60,7 +61,7 @@ with guarded("Overview"):
                 "See the Lenders page.")
     else:
         st.altair_chart(lender_interval_chart(ranked), width="stretch")
-    st.caption("The bar is the share; the black line is its "
+    st.caption("The bar is the share; the orange line is its "
                f"{cfg['lender_comparison']['confidence']:.0%} confidence interval. Lenders are ranked by the lower end "
                "of that line, so a small lender cannot top the list by luck. Lenders with too few messages are left out; "
                "see the Lenders page.")

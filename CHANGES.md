@@ -1,3 +1,23 @@
+# Changes in Phase 8C (light theme, logo per theme, compact UGX tiles)
+
+- **Why "FairLend" vanished:** the app read the theme from `st.context.theme.type`. Streamlit 1.65 documents that this can be wrong on a session's first run and right after a theme change. With no default theme set, the cloud showed the pale-text logo (`fairlend-watch-logo-dark.svg`) on a light sidebar.
+  - "FairLend" `#F1F5F9` on the light sidebar `#F0F2F6` is **1.02:1**, invisible.
+  - "Watch" `#2DD4BF` is 1.66:1, faint but visible. That is exactly what was seen.
+- **Fix:**
+  - `.streamlit/config.toml` sets `[theme] base = "light"`, so new visitors start light. There is still no `server.address`, usage statistics are still off, and there are no secrets.
+  - `pick_logo()` and `theme_type()` in `src/dashboard_ui.py`: the dark-text logo on light, the pale-text logo on dark, and the light-theme logo whenever the theme is unknown. `show_logo()` asks on every run, so a wrong first reading corrects itself on the next interaction.
+  - The About page now uses `logo_image()`, which follows the theme. It used to always show the dark-text logo, which was invisible on a dark page; `light_logo_image` stays as an alias.
+- **Contrast, measured from the SVG fills against Streamlit 1.65's sidebar colours** (light `#F0F2F6`, dark `#262730`):
+  - light logo on light: "FairLend" 15.93:1, "Watch" 4.88:1, tagline 6.76:1
+  - dark logo on dark: 13.54:1, 7.97:1 and 5.79:1
+- **Charts:** the black confidence-interval line and ticks were invisible on dark (1.11:1). They are now amber `#D97706` (3.2:1 on white, 5.9:1 on dark). The share bars moved from `#9ecae9` (1.74:1 on white) to `#4C78A8` at 55% opacity, which is 4.6:1 and 4.1:1 at full strength. Labels and score tracks follow the theme. Long lender and loan names get a label limit, so the charts fit narrow screens.
+- **Money tiles:** a new `format_money_compact()` in `src/money.py` writes `UGX 259.8M`, `UGX 590K` or `UGX 999`, moves 999,999 up to `UGX 1M`, and gives `n/a` for missing values.
+  - The Overview's "Owed by high-band borrowers" tile and the Borrowers page's "Total owed" and "Monthly income" tiles use it, with "Exact amount: UGX ..." as the tile's help.
+  - The Review page's "Messages reviewed" now shows the count, with "of N (share)" underneath.
+  - Exact amounts stay everywhere else.
+- **Tests:** new `tests/test_theme_and_tiles.py` (33). `tests/test_money.py` and `tests/test_review_page.py` were updated for the compact tiles.
+- **Mutation checks:** 12 breaks of the logo choice, the theme setting, the compact formatter, the Overview tile and the chart colours; every one was caught.
+
 # Changes after Phase 8B (listening address)
 
 - `.streamlit/config.toml` no longer sets `server.address`, so Streamlit Community Cloud can choose its own. It still turns usage statistics off and holds no secrets.
