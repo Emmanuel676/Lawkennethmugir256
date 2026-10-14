@@ -8,6 +8,9 @@
 .env.*
 !.env.example
 *.key
+# Streamlit secrets (on Streamlit Cloud they live in the app's Secrets box, never in Git).
+.streamlit/secrets.toml
+secrets.toml
 *.pem
 # Borrower-code salt/pepper. src/make_borrower_codes.py asks for the salt at a hidden prompt and
 # never saves it; these patterns only catch a salt someone saved by hand.

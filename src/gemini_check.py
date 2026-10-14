@@ -474,7 +474,7 @@ def main(argv: list[str] | None = None, client=None, sleep=time.sleep) -> int:
         print(error)
         return 1
     except ImportError:
-        print("The google-genai package is not installed. Install it with: pip install -r requirements.txt")
+        print("The google-genai package is not installed. Install it with: pip install -r requirements-dev.txt")
         return 1
     except Exception as error:  # building the client failed: name the type only, never the details
         print(f"Could not start the Gemini client ({type(error).__name__}). Nothing was sent.")

@@ -1,3 +1,50 @@
+# Changes in Phase 8B (ready for Streamlit Community Cloud; not deployed)
+
+First-start build
+- New `src/bootstrap.py`. When the demo is missing or stale, the app builds it itself. Stale means:
+  - the data doesn't match its manifest fingerprint
+  - the labels were made from other messages, or are incomplete
+  - a file can't be read
+  - the saved model was trained with a different scikit-learn
+
+  A build regenerates the data from `config.yaml` and the seed, retrains the classifier under the running scikit-learn (the version is now stored in `local_model.json`), labels every message and checks the result. It deletes the demo's old files first, so a damaged file is never reused, and writes only the demo's files plus `.demo_build.lock` and `.demo_build_progress.json` in the same folder.
+- Build once: a lock file created with `O_EXCL`; other visitors wait and see the builder's real steps. A lock older than `app.bootstrap.lock_timeout_seconds` (900) is taken over.
+- Failures return an error code. The app log gets the exception type and code locations only, never the message. The page shows "The demo could not be prepared (error code FW-...)" with no traceback.
+- `src/dashboard_ui.py`: `page_setup` builds the demo before loading data when `app.bootstrap.auto_build` allows it. `presentation` (the default) means only in presentation mode, which is the cloud; the other values are `always` and `never`. The progress screen says "Preparing the demo: about 1 minute(s), first start only" and shows the real steps.
+- `presentation_from_secrets()`: if `FAIRLEND_PRESENT` is only in `st.secrets`, it is copied to the environment. On Streamlit Cloud top-level secrets are environment variables already, so this is a safety net.
+- Preflight boots the pages with auto-build switched off, so a check never writes data.
+- Measured on this laptop (Python 3.14, empty data folder, presentation mode): build 13.8 s, peak memory 256 MB. First request to first page, build included, 27.4 s at 309 MB peak. A second page after that 0.7 s.
+
+Dependencies
+- `requirements.txt` holds only what the app needs, pinned to versions installed and tested on Python 3.12: altair 6.3.0, joblib 1.6.0, numpy 2.5.4, openpyxl 3.1.5, pandas 3.0.6, pyyaml 6.0.3, scikit-learn 1.9.1, streamlit 1.65.0.
+- New `requirements-dev.txt`: `-r requirements.txt`, plus pytest 9.1.1 and google-genai 2.30.1.
+- `dev.ps1 -Install`, the README and the Gemini check's install hint use the dev file.
+- `.gitignore`: `.streamlit/secrets.toml` and `secrets.toml`. `.streamlit/config.toml` has no secrets and usage statistics are off.
+
+README
+- "Deploying to Streamlit Community Cloud", with the exact form values and a note to restrict viewers.
+
+Tests
+- New `tests/test_bootstrap.py` (25). It covers:
+  - builds when missing, skips when fresh, rebuilds after five kinds of staleness
+  - two visitors at once build only once
+  - an abandoned lock is taken over; a held lock makes others wait and report the builder's failure
+  - a failure logs the type only; an unwritable folder fails politely
+  - the app builds on first start in presentation mode; a failed first start shows a plain message
+  - when the app builds by itself; presentation mode from the environment variable and from `st.secrets`
+  - the requirements split and pins; every imported package is in `requirements.txt`; no network names; the Streamlit settings
+- Mutation checks: each of 13 safeguards was broken in turn and the tests failed every time.
+
+# Phase 8A, finished
+
+- Fresh-clone test: a clean clone of the commit into a short temp path, a new Python 3.12.10 environment, and `pip install -r requirements.txt` (376 s, after the network was fixed). Then:
+  - `python -m src.build_all`: 34.9 s, the same fingerprint `3945277a`
+  - preflight: 7 of 7 PASS; git sees no changed files after the build
+  - the full suite in the clone: 567 passed in 5 min 12 s
+- No test fixture, template or asset is hidden by the `*.csv`, `*.xlsx`, `*.joblib` or `*salt*` patterns: nothing outside `data/`, `.venv` and the caches is ignored.
+- The first 3.12 install failed on Windows' 260-character path limit in a deep temp folder; a shorter clone path fixed it.
+- The model saved under Python 3.14 loads and predicts under Python 3.12 with the same scikit-learn (1.9.1). Across scikit-learn versions that is not guaranteed, which is why the cloud retrains at start-up.
+
 # Changes in Phase 8A (GitHub preparation and the try-a-message box)
 
 Try a message

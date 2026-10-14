@@ -5,7 +5,7 @@
 .EXAMPLE
     .\dev.ps1                 # start the dashboard (http://localhost:8501)
     .\dev.ps1 -Present        # start the dashboard in presentation mode (demo data only)
-    .\dev.ps1 -Install        # create .venv if needed and install requirements.txt
+    .\dev.ps1 -Install        # create .venv if needed and install requirements-dev.txt (app + tests + Gemini check)
     .\dev.ps1 -Rebuild        # rebuild the demo dataset, labels, scores and lender comparison
     .\dev.ps1 -Test           # run the automatic checks
     .\dev.ps1 -Preflight      # check everything is ready for a demo (PASS/FAIL per check)
@@ -39,7 +39,7 @@ function Invoke-Step([string]$Title, [scriptblock]$Action) {
 if ($Install) {
     Invoke-Step "Install" {
         if (-not (Test-Path $python)) { py -m venv .venv }
-        & $python -m pip install -r requirements.txt
+        & $python -m pip install -r requirements-dev.txt
     }
 }
 

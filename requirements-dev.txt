@@ -1,0 +1,5 @@
+# Local development: the app's requirements plus the test runner and the offline Gemini check.
+# Install with: pip install -r requirements-dev.txt   (or .\dev.ps1 -Install)
+-r requirements.txt
+pytest==9.1.1
+google-genai==2.30.1

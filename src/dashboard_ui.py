@@ -31,7 +31,8 @@ import streamlit as st
 from src.config import PROJECT_ROOT, ConfigError, load_config
 from src.dashboard_data import REVIEW_LINE, DashboardData, data_signature, load_all
 from src.app_log import log_exception
-from src.datasets import get_active_name, list_datasets, presentation_mode, set_active
+from src.bootstrap import STEPS, demo_status, ensure_demo, signature
+from src.datasets import DEMO, PRESENT_VARIABLE, get_active_name, list_datasets, presentation_mode, set_active
 from src.overlap import DEFAULT_NOTICE
 
 CONFIG_VARIABLE = "LENDING_MONITOR_CONFIG"
@@ -156,11 +157,76 @@ def dataset_switcher(cfg: dict) -> None:
     st.sidebar.caption("Manage datasets on the Data page.")
 
 
+def presentation_from_secrets() -> None:
+    """On Streamlit Community Cloud, FAIRLEND_PRESENT is set in the app's Secrets box. Top-level secrets are
+    also environment variables there, which presentation_mode() reads. As a safety net, copy the secret to
+    the environment when only st.secrets has it. Without a secrets file st.secrets raises, which is caught:
+    nothing is shown. Only this one value is ever read from secrets.
+    """
+    if os.environ.get(PRESENT_VARIABLE, "").strip():
+        return
+    try:
+        value = st.secrets.get(PRESENT_VARIABLE)
+    except Exception:
+        return
+    if value is not None and str(value).strip():
+        os.environ[PRESENT_VARIABLE] = str(value).strip()
+
+
+def auto_build_wanted(cfg: dict) -> bool:
+    """app.bootstrap.auto_build: 'presentation' (default: only in presentation mode), 'always' or 'never'."""
+    mode = cfg["app"]["bootstrap"]["auto_build"]
+    if mode == "never":
+        return False
+    return get_active_name(cfg) == DEMO and (mode == "always" or presentation_mode(cfg))
+
+
+@st.cache_resource(max_entries=4, show_spinner=False)
+def _checked_status(path: str | None, files: tuple) -> tuple[str, str]:
+    # files (the demo files' sizes and times) is part of the cache key only: the check runs again when one changes.
+    return demo_status(load_config(path))
+
+
+BUILD_TEXT = ("Preparing the demo: about {minutes} minute(s), first start only. The synthetic demo data is being "
+              "generated and the message classifier trained on this server. Nothing real is involved.")
+
+
+def prepare_demo(cfg: dict) -> None:
+    """If the demo is missing or stale, build it (or wait for the visitor who is building it) with a live
+    progress screen of the real steps, then reload the page. On failure, stop with a short error code."""
+    status, _ = _checked_status(config_path(), signature(cfg))
+    if status == "fresh":
+        return
+    minutes = int(cfg["app"]["bootstrap"]["expected_minutes"])
+    st.info(BUILD_TEXT.format(minutes=minutes))
+    bar = st.progress(0.0, text="Starting...")
+    lines = st.empty()
+    done: list[str] = []
+
+    def on_step(number: int, total: int, title: str) -> None:
+        done[:] = [f"{'✅' if i < number else '⏳'} {i}. {STEPS[i - 1]}" for i in range(1, min(number, total) + 1)]
+        bar.progress(min(max(number - 1, 0) / total, 1.0), text=f"Step {number} of {total}: {title}")
+        lines.markdown("\n\n".join(done))
+
+    result = ensure_demo(cfg, on_step=on_step)
+    if not result.ok:
+        bar.empty()
+        st.error(f"The demo could not be prepared (error code {result.code}). Nothing real is involved. Try again "
+                 "in a few minutes; if it keeps failing, quote the error code. The details are in the app log.")
+        st.stop()
+    bar.progress(1.0, text="Ready")
+    _checked_status.clear()
+    _cached_load.clear()
+    st.rerun()
+
+
 def page_setup(title: str, require_data: bool = True) -> tuple[DashboardData, dict]:
     """Branding, dataset switcher, status banner and data for a page.
 
-    With require_data (every page but Data), the page stops with instructions if the data is not ready.
+    In presentation mode on a fresh server, the demo is built first (prepare_demo). With require_data
+    (every page but Data), the page stops with instructions if the data is not ready.
     """
+    presentation_from_secrets()
     try:
         cfg = load_config(config_path())
     except ConfigError as error:
@@ -170,6 +236,8 @@ def page_setup(title: str, require_data: bool = True) -> tuple[DashboardData, di
         st.stop()
     brand_header(title, cfg)
     dataset_switcher(cfg)
+    if auto_build_wanted(cfg):
+        prepare_demo(cfg)
     data = _cached_load(config_path(), data_signature(cfg))
     banner(data)
     if not data.ok:

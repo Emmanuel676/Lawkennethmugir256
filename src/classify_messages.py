@@ -67,8 +67,15 @@ def train_local_model(cfg: dict) -> tuple[Pipeline, int]:
     save_model(model, saved)
     _write_json(saved.with_suffix(".json"), {"n_train": len(examples), "trained_at": now_utc(),
                                              "trained_on": "dev messages of the demo (synthetic)",
-                                             "model_id": model_id(cfg)})
+                                             "model_id": model_id(cfg), "sklearn_version": sklearn_version()})
     return model, len(examples)
+
+
+def sklearn_version() -> str:
+    """The installed scikit-learn version. A saved model is only trusted with the same version."""
+    import sklearn
+
+    return str(sklearn.__version__)
 
 
 def _write_json(path: Path, info: dict) -> None:

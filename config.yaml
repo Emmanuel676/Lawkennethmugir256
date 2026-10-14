@@ -25,6 +25,13 @@ app:
   log_file: "data/logs/app.log"   # unexpected page errors: exception type and code locations only, never data
   log_max_bytes: 2000000          # the log rotates at this size...
   log_backups: 3                  # ...keeping this many old files
+  # Phase 8B: building the demo on first start (src/bootstrap.py). A fresh server (Streamlit Community
+  # Cloud) has an empty data/ folder and no shell, so the app builds the synthetic demo itself.
+  bootstrap:
+    auto_build: presentation      # presentation = only in presentation mode (the cloud); always; never
+    lock_timeout_seconds: 900     # a build lock older than this is treated as abandoned
+    wait_poll_seconds: 1.0        # how often other visitors check the build's progress
+    expected_minutes: 1           # shown on the progress screen ("about N minutes, first start only")
 
 # Money (Phase 7A). Every amount in the data is a whole number of Ugandan shillings.
 # All money on screen, in exports and in plain-language explanations is written with src/money.py.

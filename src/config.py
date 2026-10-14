@@ -366,6 +366,19 @@ def _validate_app(app: dict) -> None:
         raise ConfigError("app.log_max_bytes must be a whole number of 10000 or more.")
     if not _whole(app.get("log_backups"), 1):
         raise ConfigError("app.log_backups must be a whole number of 1 or more.")
+    boot = app.get("bootstrap")
+    if not isinstance(boot, dict):
+        raise ConfigError("app.bootstrap must be a mapping (auto_build, lock_timeout_seconds, wait_poll_seconds, "
+                          "expected_minutes).")
+    if boot.get("auto_build") not in ("presentation", "always", "never"):
+        raise ConfigError("app.bootstrap.auto_build must be presentation, always or never.")
+    if not _whole(boot.get("lock_timeout_seconds"), 60):
+        raise ConfigError("app.bootstrap.lock_timeout_seconds must be a whole number of 60 or more.")
+    poll = boot.get("wait_poll_seconds")
+    if isinstance(poll, bool) or not isinstance(poll, (int, float)) or not 0.1 <= poll <= 30:
+        raise ConfigError("app.bootstrap.wait_poll_seconds must be a number from 0.1 to 30.")
+    if not _whole(boot.get("expected_minutes"), 1):
+        raise ConfigError("app.bootstrap.expected_minutes must be a whole number of 1 or more.")
 
 
 def _validate_demo(demo: dict) -> None:

@@ -125,12 +125,18 @@ def _boot(page: str, config_file: str | None) -> tuple[bool, str]:
     return True, "boots"
 
 
-def check_pages(config_file: str | None) -> tuple[bool, str]:
+def check_pages(cfg: dict) -> tuple[bool, str]:
+    """Boot every page. Automatic demo building is switched off here: a check must never write data."""
     failures = []
-    for page in PAGES:
-        ok, why = _boot(page, config_file)
-        if not ok:
-            failures.append(f"{page} {why}")
+    with tempfile.TemporaryDirectory() as folder:
+        quiet = copy.deepcopy(cfg)
+        quiet["app"]["bootstrap"]["auto_build"] = "never"
+        config_file = Path(folder) / "config.yaml"
+        config_file.write_text(yaml.safe_dump(quiet), encoding="utf-8")
+        for page in PAGES:
+            ok, why = _boot(page, str(config_file))
+            if not ok:
+                failures.append(f"{page} {why}")
     if failures:
         return False, "; ".join(failures)
     return True, f"all {len(PAGES)} pages boot in presentation mode with no exception"
@@ -144,6 +150,7 @@ def check_presentation_hides_real_data(cfg: dict) -> tuple[bool, str]:
     with tempfile.TemporaryDirectory() as folder:
         hidden = copy.deepcopy(cfg)
         hidden["app"]["presentation_mode"] = False
+        hidden["app"]["bootstrap"]["auto_build"] = "never"  # a check must never write data
         hidden["paths"]["datasets_dir"] = str(Path(folder) / "datasets")
         hidden["paths"]["active_dataset_file"] = str(Path(folder) / "active_dataset.txt")
         config_file = Path(folder) / "config.yaml"
@@ -214,7 +221,7 @@ def run(config_file: str | None = None) -> list[tuple[str, bool, str]]:
         ]
         for name, check in checks:
             results.append((name, *_safely(check)))
-    results.append(("every page boots", *_safely(lambda: check_pages(config_file))))
+    results.append(("every page boots", *_safely(lambda: check_pages(cfg))))
     results.append(("presentation mode hides real data", *_safely(lambda: check_presentation_hides_real_data(cfg))))
     results.append(("logo files exist", *_safely(check_assets)))
     results.append((".env is not served or listed", *_safely(check_secret_file)))

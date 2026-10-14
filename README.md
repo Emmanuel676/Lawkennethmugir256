@@ -41,9 +41,9 @@ cd $HOME\projects\lending-monitor
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# 2. Install the packages (once)
+# 2. Install the packages (once). requirements-dev.txt = the app's requirements.txt + pytest + google-genai
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 3. Build everything in one command (15 to 35 seconds; no network, no API key):
 #    dataset, message labels, data\borrower_scores.csv and data\lender_comparison.csv
@@ -628,7 +628,7 @@ timings, what to click, what to say, three caveats to say out loud, and twelve h
 questions with short, true answers). Its numbers come from the synthetic demo.
 
 `dev.ps1` is new in this phase (there was none before). Its switches are `-Install`
-(create `.venv` if needed and install `requirements.txt`), `-Rebuild`, `-Test`, `-Preflight`
+(create `.venv` if needed and install `requirements-dev.txt`), `-Rebuild`, `-Test`, `-Preflight`
 and `-Present`. They can be combined and run in that order. Without a switch, or with
 `-Present`, it starts the dashboard.
 
@@ -754,7 +754,7 @@ To run it (the key is typed into this PowerShell session only; it is not saved a
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt           # once: installs google-genai
+pip install -r requirements-dev.txt       # once: installs google-genai and pytest
 $env:GEMINI_API_KEY = Read-Host "Paste key (will not be saved)"
 python -m src.gemini_check --dataset demo
 Remove-Item Env:GEMINI_API_KEY            # forget the key when done
@@ -779,11 +779,48 @@ or is real and confidential (see `.gitignore`). On a fresh clone:
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # the app (requirements.txt) plus pytest and google-genai
 python -m src.build_all        # rebuilds the demo dataset, labels, model, scores and comparison
 python -m src.preflight        # every check must say PASS
 streamlit run app.py
 ```
+
+**Two requirements files.** `requirements.txt` is what the running app needs (Streamlit
+Community Cloud installs exactly this; every version is pinned and checked on Python 3.12).
+`requirements-dev.txt` adds `pytest` and `google-genai` for the tests and the offline Gemini
+check. `.\dev.ps1 -Install` installs the dev file.
+
+## Deploying to Streamlit Community Cloud
+
+The cloud app runs in **presentation mode**: the synthetic demo only, the Data and Review
+pages switched off, no real data, no Gemini key and no network calls. A fresh server has an
+empty `data\` folder and no shell, so **the app builds the demo itself on first start**. The
+first visitor sees "Preparing the demo: about 1 minute(s), first start only" with the real
+steps (generate the data, train the classifier under the server's scikit-learn, check). Anyone
+else who arrives meanwhile waits for the same build; it runs only once. The demo is rebuilt
+automatically if it is ever missing or stale. On this laptop the build takes about 14 seconds
+and the first page appears after about 27 seconds, with a peak of about 310 MB of memory; a
+cloud server may be slower.
+
+Fill in the "Deploy an app" form like this:
+
+| Field | Value |
+|-------|-------|
+| Repository / app URL | `https://github.com/Emmanuel676/Lawkennethmugir256/blob/main/app.py` |
+| Branch | `main` |
+| Main file path | `app.py` |
+| Python version (Advanced settings) | `3.12` |
+| Secrets (Advanced settings) | exactly one line: `FAIRLEND_PRESENT = "1"` |
+
+- Put **nothing else** in Secrets: no Gemini key, no real data.
+- Before anyone else opens the link, use the app's **Share** settings to restrict who can view
+  it, if your workspace offers that.
+- If the first start shows "The demo could not be prepared (error code FW-...)", reboot the app
+  from its menu; the code is in the app log.
+- `.streamlit/config.toml` keeps usage statistics off and holds no secrets.
+  `server.address = "localhost"` is for local runs. I expect Community Cloud to set the address
+  itself, but I could not check that: if the deployed app does not load, this line is the
+  first thing to look at.
 
 ## License
 
