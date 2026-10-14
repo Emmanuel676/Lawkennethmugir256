@@ -145,9 +145,9 @@ def _run(page, config_path, monkeypatch):
 def test_overview_and_borrower_pages_show_ugx(world, monkeypatch):
     cfg, config_path = world
     at = _run("app.py", config_path, monkeypatch)
-    tile = next(m for m in at.metric if m.label == "Owed by high-band borrowers")
+    tile = next(m for m in at.metric if m.label == "Owed, high band")
     assert re.fullmatch(r"UGX \d{1,3}(\.\d)?[KMB]?", tile.value)  # compact, so it is never cut off
-    assert re.fullmatch(r"Exact amount: UGX \d{1,3}(,\d{3})*", tile.help)  # ...with the exact amount in the help
+    assert re.fullmatch(r"Owed by high-band borrowers\. Exact amount: UGX \d{1,3}(,\d{3})*", tile.help)  # full wording
     assert "Total owed (UGX)" in at.dataframe[0].value.columns
 
     at = _run("pages/1_Borrowers.py", config_path, monkeypatch)

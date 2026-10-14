@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 124" width="920" height="248" role="img" aria-label="FairLend Watch"><g transform="translate(8,4)">
-  <defs><clipPath id="c84"><circle cx="44" cy="58" r="24"/></clipPath></defs>
-  <circle cx="44" cy="58" r="24" fill="none" stroke="#0F766E" stroke-width="7"/>
-  <circle cx="76" cy="58" r="24" fill="none" stroke="#D97706" stroke-width="7"/>
-  <circle cx="76" cy="58" r="24" fill="#D97706" fill-opacity="0.35" clip-path="url(#c84)"/>
-  <circle cx="60" cy="58" r="46" fill="none" stroke="#94A3B8" stroke-width="5"/>
-  <line x1="93" y1="91" x2="112" y2="110" stroke="#94A3B8" stroke-width="9" stroke-linecap="round"/>
-</g><text x="140" y="68" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="38" font-weight="700" fill="#F1F5F9">FairLend <tspan fill="#2DD4BF">Watch</tspan></text><text x="142" y="92" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" letter-spacing="2.2" fill="#94A3B8">LENDING CONDUCT MONITOR</text></svg>

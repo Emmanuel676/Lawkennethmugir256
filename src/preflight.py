@@ -178,7 +178,7 @@ def check_presentation_hides_real_data(cfg: dict) -> tuple[bool, str]:
 
 
 def check_assets() -> tuple[bool, str]:
-    names = ("fairlend-watch-logo-light.svg", "fairlend-watch-logo-dark.svg", "fairlend-watch-icon.svg")
+    names = ("fairlend-watch-logo.svg", "fairlend-watch-icon.svg")
     missing = [name for name in names if not (PROJECT_ROOT / "assets" / name).is_file()]
     if missing:
         return False, f"missing in assets/: {', '.join(missing)}"

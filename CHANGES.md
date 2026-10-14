@@ -1,3 +1,31 @@
+# Changes in Phase 8D (one logo that reads on any theme, shorter tile labels)
+
+- **Why the logo still failed after 8C:** the sidebar logo was still one of two files, chosen from `st.context.theme.type`. Streamlit 1.65 can report that wrongly on a session's first run. In your case the browser was in dark mode while the app was light, and the pale-text file was chosen: "FairLend" at 1.02:1 on the light sidebar.
+- **Why not inline HTML that takes the sidebar's text colour:**
+  - `st.logo` draws an `<img>`, which cannot take the page's text colour, and an SVG media query inside it follows the device's dark mode, the very failure seen.
+  - `st.sidebar.html` would sit below the page menu and lose the small header icon.
+  - No single text colour reaches 4.5:1 on both sidebars (`#F0F2F6` and `#262730`), so an accent like "Watch" cannot be theme-proof by colour alone.
+- **Fix:** one wide logo (`assets/fairlend-watch-logo.svg`) and one icon (`assets/fairlend-watch-icon.svg`), each drawn on an opaque white rounded plate with a slate border.
+  - The two theme files `fairlend-watch-logo-light.svg` and `-dark.svg` were removed, and so was `pick_logo()`.
+  - `show_logo()`, `logo_image()` (About page) and the page icon no longer read the theme at all; `theme_type()` and `_theme()` are now used for chart text colours only.
+  - The icon's amber ring went from `#D97706` (3.19:1 on white) to `#B45309` (5.02:1).
+- **Contrast after** (every element sits on the opaque plate, so the plate is its background on either sidebar):
+  - "FairLend" `#0F172A` 17.85:1
+  - "Watch" and the teal ring `#0F766E` 5.47:1
+  - the tagline and the slate ring `#475569` 7.58:1
+  - the amber ring `#B45309` 5.02:1
+  - The plate stands out on the dark sidebar at 14.84:1; on the light sidebar its border shows at 2.29:1.
+- **Tile labels**, now at most 20 characters, with the full wording in each tile's help:
+  - "Owed by high-band borrowers" became "Owed, high band", with help "Owed by high-band borrowers. Exact amount: UGX ...".
+  - "Labels checked by a person" became "Checked by a person".
+  - The "Flagged AND harassed" sub-line is shorter.
+- A static preview of the logo on both sidebars, with the old pale logo for comparison, can be written to `data/logo_preview.html` (git-ignored).
+- **Tests:**
+  - `tests/test_theme_and_tiles.py` now checks: one logo and one icon; the plate is opaque, white, drawn first and full size; the wordmark is at least 4.5:1 and the icon marks at least 3:1; the plate or its border stands out on each sidebar; why a plate is needed; that the logo never asks for the theme (by calling it and by reading the code); and that tile labels are at most 20 characters.
+  - The presentation-mode test now uses a real active dataset; before, it could not fail.
+  - The branding, money and preflight checks were updated for the single logo and the new label.
+- **Mutation checks:** 12 breaks of the logo colours, the plate, the no-detection rule, the labels, the theme setting and the presentation lock; every one was caught. The presentation one was missed at first, which is how the weak test was found.
+
 # Changes in Phase 8C (light theme, logo per theme, compact UGX tiles)
 
 - **Why "FairLend" vanished:** the app read the theme from `st.context.theme.type`. Streamlit 1.65 documents that this can be wrong on a session's first run and right after a theme change. With no default theme set, the cloud showed the pale-text logo (`fairlend-watch-logo-dark.svg`) on a light sidebar.

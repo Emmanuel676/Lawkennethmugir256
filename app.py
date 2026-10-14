@@ -32,14 +32,18 @@ with guarded("Overview"):
         column.metric(f"Band: {band}", f"{kpis['band_counts'][band]:,}", f"{kpis['band_shares'][band]:.1%} of borrowers",
                       delta_color="off")
     row2 = st.columns(4)
-    row2[0].metric("Owed by high-band borrowers", format_money_compact(kpis["owed_by_high_band"], cfg),
-                   help=f"Exact amount: {format_money(kpis['owed_by_high_band'], cfg)}")
+    # Labels stay at 20 characters or fewer so they are not cut off in a row of four tiles on a laptop;
+    # the full wording (and any exact amount) is in each tile's help.
+    row2[0].metric("Owed, high band", format_money_compact(kpis["owed_by_high_band"], cfg),
+                   help=f"Owed by high-band borrowers. Exact amount: {format_money(kpis['owed_by_high_band'], cfg)}")
     row2[1].metric("Messages classified", f"{kpis['messages_classified']:,}",
                    f"{kpis['abusive_message_share']:.1%} labelled abusive", delta_color="off")
     row2[2].metric("Lenders ranked", f"{kpis['lenders_ranked']}", f"{kpis['lenders_unranked']} too small to rank",
                    delta_color="off")
     row2[3].metric("Flagged AND harassed", f"{kpis['flagged_and_harassed']:,}",
-                   f"medium/high band and {kpis['concern_min_abusive_messages']}+ abusive messages", delta_color="off")
+                   f"{kpis['concern_min_abusive_messages']}+ abusive, medium/high", delta_color="off",
+                   help=(f"Borrowers in the medium or high band who also received "
+                         f"{kpis['concern_min_abusive_messages']} or more messages labelled abusive."))
 
     left, right = st.columns(2)
     with left:

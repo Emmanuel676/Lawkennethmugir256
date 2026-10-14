@@ -81,7 +81,7 @@ def test_empty_name_or_tagline_is_rejected():
 # --- Logo -----------------------------------------------------------------------------
 
 def test_the_logo_files_are_found():
-    assert set(brand_images()) == {"light", "dark", "icon"}
+    assert set(brand_images()) == {"logo", "icon"}
 
 
 def test_logo_helpers_do_not_raise_when_assets_are_missing(tmp_path):
@@ -91,7 +91,7 @@ def test_logo_helpers_do_not_raise_when_assets_are_missing(tmp_path):
 
 
 def test_logo_helpers_do_not_raise_on_broken_files(tmp_path):
-    for name in ("fairlend-watch-logo-light.svg", "fairlend-watch-logo-dark.svg", "fairlend-watch-icon.svg"):
+    for name in ("fairlend-watch-logo.svg", "fairlend-watch-icon.svg"):
         (tmp_path / name).write_bytes(b"\x00not an image")
     show_logo(tmp_path)  # must simply not raise
     light_logo_image(assets_dir=tmp_path)

@@ -46,7 +46,9 @@ with guarded("Review"):
                   f"of {state['messages']:,} ({state['share_reviewed']:.1%})", delta_color="off")
     row[1].metric("Random check", f"{state['per_batch']['random']:,}")
     row[2].metric("Hard cases", f"{state['per_batch']['hard']:,}")
-    row[3].metric("Labels checked by a person", f"{data.human_share:.1%}")
+    row[3].metric("Checked by a person", f"{data.human_share:.1%}",
+                  help="Share of all message labels in this dataset that a person has checked; those labels "
+                       "replace the model's label everywhere.")
     st.dataframe(state["table"].rename_axis("batch").reset_index(), hide_index=True, key="progress_table")
 
     with st.container(border=True):

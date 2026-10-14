@@ -91,7 +91,7 @@ Next time, you only need to `cd` into the folder, activate the environment
 | `app.py` | Dashboard: Overview page. |
 | `pages/` | Dashboard: Borrowers, Lenders, Export and About pages. |
 | `.streamlit/config.toml` | Keeps the dashboard on this computer and switches off Streamlit's usage statistics. |
-| `assets/` | FairLend Watch logos (light and dark backgrounds) and icon, as SVG. |
+| `assets/` | FairLend Watch logo and icon, as SVG, each on its own white plate (readable on any theme). |
 | `src/config.py` | Loads and checks `config.yaml`. |
 | `src/db.py` | Database schemas and helpers. |
 | `src/templates.py` | The message templates, by class. |
@@ -343,9 +343,10 @@ shows the PowerShell commands to fix it instead of an error.
 
 **Name and logo.** The product name and tagline come from `project.name` and
 `project.tagline` in `config.yaml` and appear in every page header and in the
-browser tab. The sidebar logo follows the viewer's light or dark theme; the
-icon is used as the browser-tab icon and the small logo. The About page shows
-the light logo. If the files in `assets/` are missing, pages show text only.
+browser tab. The sidebar shows one logo on its own white plate, the same on a
+light and a dark theme; the icon is the browser-tab icon and the small logo.
+The About page shows the same logo. If the files in `assets/` are missing,
+pages show text only.
 
 **Where the data comes from.** Pages and `src/dashboard_data.py` get their
 database paths only from `get_active_paths()` in `src/datasets.py`. Today it
@@ -765,10 +766,12 @@ Remove-Item Env:GEMINI_API_KEY            # forget the key when done
 
 - **Light theme by default** (`[theme] base = "light"` in `.streamlit/config.toml`). Viewers
   can still switch to dark in Settings.
-- **Logo per theme:** dark text (`fairlend-watch-logo-light.svg`) on a light theme, pale text
-  (`fairlend-watch-logo-dark.svg`) on a dark theme. When the theme cannot be read, the
-  light-theme logo is used. Streamlit can misreport the theme on a session's very first run
-  and right after a theme switch; the logo corrects itself on the next interaction.
+- **One logo for every theme** (Phase 8D): `assets\fairlend-watch-logo.svg` and
+  `assets\fairlend-watch-icon.svg` sit on their own white rounded plate, so they read the same
+  on a light and a dark sidebar. Nothing detects the theme for the logo: Streamlit's theme
+  report can be wrong on a session's first run and may follow the browser's dark mode.
+  Every colour is checked against the plate, and the plate against both sidebars, in
+  `tests\test_theme_and_tiles.py`.
 - **Charts read on both themes:** the bars and the orange confidence-interval line keep at
   least 3:1 contrast on white and on the dark background, and labels follow the theme.
 - **Money tiles never get cut off:** large amounts use a short form (`UGX 259.8M`), and the

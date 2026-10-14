@@ -30,54 +30,93 @@ def contrast(a: str, b: str) -> float:
     return (high + 0.05) / (low + 0.05)
 
 
-def text_colours(svg: Path) -> dict[str, str]:
-    """The fill colour of each piece of text in a logo SVG: the name, 'Watch' and the tagline."""
+def colours(svg: Path) -> dict[str, list[str]]:
+    """Every colour in a logo file: the plate (first rect), the text and the icon strokes and fills."""
     source = svg.read_text(encoding="utf-8")
-    return {"FairLend": re.search(r'font-size="38"[^>]*fill="(#[0-9A-Fa-f]{6})"', source).group(1),
-            "Watch": re.search(r'<tspan fill="(#[0-9A-Fa-f]{6})"', source).group(1),
-            "tagline": re.search(r'font-size="13"[^>]*fill="(#[0-9A-Fa-f]{6})"', source).group(1)}
+    plate = re.search(r'<rect[^>]*fill="(#[0-9A-Fa-f]{6})"', source)
+    found = {"plate": [plate.group(1)] if plate else [],
+             "wordmark": re.findall(r'<(?:text|tspan)[^>]*fill="(#[0-9A-Fa-f]{6})"', source),
+             "icon": re.findall(r'<(?:circle|line)[^>]*(?:stroke|fill)="(#[0-9A-Fa-f]{6})"', source)}
+    return found
 
 
-# --- The logo --------------------------------------------------------------------------------------------------------
-
-@pytest.mark.parametrize("theme, expected", [
-    ("light", "fairlend-watch-logo-light.svg"),   # dark text for a light sidebar
-    ("dark", "fairlend-watch-logo-dark.svg"),     # pale text for a dark sidebar
-    (None, "fairlend-watch-logo-light.svg"),      # unknown: light is the default theme
-    ("sepia", "fairlend-watch-logo-light.svg"),
-])
-def test_the_logo_matches_the_theme(theme, expected):
-    assert ui.pick_logo(theme, ui.brand_images(ASSETS)).name == expected
+LOGO_FILE, ICON_FILE = ASSETS / ui.LOGO, ASSETS / ui.ICON
 
 
-def test_a_missing_file_falls_back_to_the_other_logo(tmp_path):
-    (tmp_path / ui.LOGO_DARK).write_text(ASSETS.joinpath(ui.LOGO_DARK).read_text(encoding="utf-8"), encoding="utf-8")
-    assert ui.pick_logo("light", ui.brand_images(tmp_path)).name == ui.LOGO_DARK
-    assert ui.pick_logo("light", {}) is None
+# --- The logo: one file for every theme ---------------------------------------------------------------------------------
+
+def test_there_is_one_logo_and_one_icon_and_no_theme_variants():
+    assert sorted(p.name for p in ASSETS.glob("*.svg")) == ["fairlend-watch-icon.svg", "fairlend-watch-logo.svg"]
+    assert set(ui.brand_images(ASSETS)) == {"logo", "icon"}
+
+
+@pytest.mark.parametrize("svg", [LOGO_FILE, ICON_FILE])
+def test_the_plate_is_opaque_white_and_covers_the_whole_image(svg):
+    source = svg.read_text(encoding="utf-8")
+    width, height = (float(v) for v in re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', source).groups())
+    rect = re.search(r"<rect([^>]*)/>", source).group(1)
+    assert source.index("<rect") < source.index("<g")  # drawn first, so everything sits on it
+    assert 'fill="#FFFFFF"' in rect and "opacity" not in rect
+    assert float(re.search(r'width="([\d.]+)"', rect).group(1)) >= width - 2
+    assert float(re.search(r'height="([\d.]+)"', rect).group(1)) >= height - 2
+
+
+def test_the_wordmark_reads_at_4_5_to_1_or_better_on_both_sidebars():
+    """The text sits on the opaque plate, so the plate is its background on a light AND a dark sidebar."""
+    found = colours(LOGO_FILE)
+    assert len(found["wordmark"]) == 3  # FairLend, Watch, the tagline
+    for colour in found["wordmark"]:
+        assert contrast(colour, found["plate"][0]) >= 4.5, colour
+
+
+@pytest.mark.parametrize("svg", [LOGO_FILE, ICON_FILE])
+def test_the_icon_marks_read_at_3_to_1_or_better_on_both_sidebars(svg):
+    found = colours(svg)
+    assert found["icon"]
+    for colour in found["icon"]:
+        assert contrast(colour, found["plate"][0]) >= 3, colour
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
-def test_the_chosen_logo_is_readable_on_that_themes_sidebar(theme):
-    colours = text_colours(ui.pick_logo(theme, ui.brand_images(ASSETS)))
-    assert contrast(colours["FairLend"], SIDEBAR[theme]) >= 7      # the name: well above 4.5:1
-    assert contrast(colours["Watch"], SIDEBAR[theme]) >= 4.5
-    assert contrast(colours["tagline"], SIDEBAR[theme]) >= 4.5
+def test_the_plate_or_its_border_stands_out_on_each_sidebar(theme):
+    """So the logo has a visible edge: the white plate on the dark sidebar, its slate border on the light one."""
+    source = LOGO_FILE.read_text(encoding="utf-8")
+    border = re.search(r'<rect[^>]*stroke="(#[0-9A-Fa-f]{6})"', source).group(1)
+    plate = colours(LOGO_FILE)["plate"][0]
+    assert max(contrast(plate, SIDEBAR[theme]), contrast(border, SIDEBAR[theme])) >= 2
 
 
-def test_the_old_mismatch_really_hid_the_name():
-    """What was seen on the cloud: the pale-text logo on the light sidebar. 'FairLend' vanishes, 'Watch' does not."""
-    colours = text_colours(ASSETS / ui.LOGO_DARK)
-    assert contrast(colours["FairLend"], SIDEBAR["light"]) < 1.1
-    assert contrast(colours["Watch"], SIDEBAR["light"]) > contrast(colours["FairLend"], SIDEBAR["light"])
+def test_no_single_text_colour_could_work_on_both_sidebars_without_a_plate():
+    """Why the plate is needed: no colour reaches 4.5:1 on both #F0F2F6 and #262730."""
+    best = max(min(contrast(f"#{v:02X}{v:02X}{v:02X}", SIDEBAR["light"]), contrast(f"#{v:02X}{v:02X}{v:02X}",
+                                                                                    SIDEBAR["dark"]))
+               for v in range(256))
+    assert best < 4.5
 
 
-@pytest.mark.parametrize("reported, expected", [("light", ui.LOGO_LIGHT), ("dark", ui.LOGO_DARK), (None, ui.LOGO_LIGHT)])
-def test_show_logo_asks_the_theme_every_run(monkeypatch, reported, expected):
-    shown = []
-    monkeypatch.setattr(ui, "theme_type", lambda: reported)
+def test_the_logo_never_asks_for_the_theme(monkeypatch):
+    def forbidden():
+        raise AssertionError("the logo asked for the theme")
+
+    monkeypatch.setattr(ui, "theme_type", forbidden)
+    monkeypatch.setattr(ui, "_theme", forbidden)
+    shown, pictures = [], []
     monkeypatch.setattr(ui.st, "logo", lambda image, **kwargs: shown.append((Path(image).name, kwargs)))
-    assert ui.show_logo(ASSETS) is True
-    assert shown[0][0] == expected and Path(shown[0][1]["icon_image"]).name == ui.ICON
+    monkeypatch.setattr(ui.st, "image", lambda image, **kwargs: pictures.append(Path(image).name))
+    assert ui.show_logo(ASSETS) is True and ui.logo_image(assets_dir=ASSETS) is True
+    assert shown[0][0] == ui.LOGO and Path(shown[0][1]["icon_image"]).name == ui.ICON
+    assert pictures == [ui.LOGO]
+
+
+def test_no_logo_code_reads_streamlit_theme_detection():
+    import inspect
+    import textwrap
+    from leak_check import names_used
+    for function in (ui.show_logo, ui.logo_image, ui.brand_images, ui._page_config):
+        used = names_used(textwrap.dedent(inspect.getsource(function)))  # names in the code, not docstrings
+        assert used.isdisjoint({"theme_type", "_theme", "context", "theme"}), (function.__name__, used)
+    for page in ["app.py", *(f"pages/{p.name}" for p in (ROOT / "pages").glob("*.py"))]:
+        assert "context.theme" not in (ROOT / page).read_text(encoding="utf-8"), page
 
 
 def test_the_theme_type_is_none_when_streamlit_cannot_tell(monkeypatch):
@@ -87,14 +126,31 @@ def test_the_theme_type_is_none_when_streamlit_cannot_tell(monkeypatch):
             raise RuntimeError("no context")
 
     monkeypatch.setattr(ui.st, "context", Broken())
-    assert ui.theme_type() is None and ui._theme() == "light"
+    assert ui.theme_type() is None and ui._theme() == "light"  # used for chart text only
 
 
-def test_the_about_page_logo_follows_the_theme(monkeypatch):
-    shown = []
-    monkeypatch.setattr(ui, "theme_type", lambda: "dark")
-    monkeypatch.setattr(ui.st, "image", lambda image, **kwargs: shown.append(Path(image).name))
-    assert ui.logo_image(assets_dir=ASSETS) is True and shown == [ui.LOGO_DARK]
+# --- Tile labels fit -------------------------------------------------------------------------------------------------------
+
+def _metric_calls(file: str):
+    import ast
+    tree = ast.parse((ROOT / file).read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "metric":
+            yield node
+
+
+@pytest.mark.parametrize("file", ["app.py", "pages/1_Borrowers.py", "pages/6_Review.py"])
+def test_tile_labels_fit_a_row_of_tiles(file):
+    """At most 20 characters: 'Owed by high-band borrowers' (27) was cut off in a row of four on a laptop."""
+    import ast
+    labels = []
+    for call in _metric_calls(file):
+        label = call.args[0]
+        if isinstance(label, ast.Constant):
+            labels.append(label.value)
+        elif isinstance(label, ast.JoinedStr):  # e.g. f"Band: {band}" with the longest band name
+            labels.append("".join(part.value if isinstance(part, ast.Constant) else "medium" for part in label.values))
+    assert labels and all(len(text) <= 20 for text in labels), [t for t in labels if len(t) > 20]
 
 
 # --- The theme setting ------------------------------------------------------------------------------------------------
@@ -109,13 +165,19 @@ def test_light_is_the_default_theme_and_the_address_stays_unset():
 
 
 def test_presentation_mode_is_unchanged(monkeypatch, tmp_path):
+    """A REAL dataset that is active in active_dataset.txt must still be ignored in presentation mode."""
     import copy
     from src.config import load_config
+    from src.datasets import create_dataset, set_active
     cfg = copy.deepcopy(load_config())
+    cfg["paths"]["datasets_dir"] = str(tmp_path / "datasets")
     cfg["paths"]["active_dataset_file"] = str(tmp_path / "active.txt")
-    (tmp_path / "active.txt").write_text("some-real-dataset\n", encoding="utf-8")
+    monkeypatch.delenv(PRESENT_VARIABLE, raising=False)
+    create_dataset(cfg, "Field Real", "test")
+    set_active(cfg, "field-real")
+    assert get_active_name(cfg) == "field-real"  # without presentation mode the real one is active...
     monkeypatch.setenv(PRESENT_VARIABLE, "1")
-    assert get_active_name(cfg) == DEMO
+    assert get_active_name(cfg) == DEMO          # ...and with it, only the demo
 
 
 # --- Chart colours readable on both themes --------------------------------------------------------------------------------

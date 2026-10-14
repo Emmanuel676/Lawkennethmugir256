@@ -37,9 +37,10 @@ from src.overlap import DEFAULT_NOTICE
 
 CONFIG_VARIABLE = "LENDING_MONITOR_CONFIG"
 ASSETS_DIR = PROJECT_ROOT / "assets"
-# Logo files. Streamlit accepts SVG here; PNG copies are not needed.
-LOGO_LIGHT = "fairlend-watch-logo-light.svg"  # dark text, for light backgrounds
-LOGO_DARK = "fairlend-watch-logo-dark.svg"    # light text, for dark backgrounds
+# Logo files. ONE wide logo and ONE icon, each on its own white rounded plate, so they read the same on a
+# light and a dark sidebar with NO theme detection (Phase 8D). st.logo shows an <img>, which cannot take the
+# page's text colour, and no single text colour reaches 4.5:1 on both sidebars, so the plate is the backing.
+LOGO = "fairlend-watch-logo.svg"
 ICON = "fairlend-watch-icon.svg"
 FALLBACK_NAME = "Dashboard (config.yaml could not be read)"
 
@@ -49,16 +50,16 @@ def config_path() -> str | None:
 
 
 def brand_images(assets_dir: Path = ASSETS_DIR) -> dict[str, Path]:
-    """The logo files that exist: keys 'light', 'dark' and 'icon'. Missing files are simply left out."""
+    """The logo files that exist: keys 'logo' and 'icon'. Missing files are simply left out."""
     found = {}
-    for key, name in (("light", LOGO_LIGHT), ("dark", LOGO_DARK), ("icon", ICON)):
+    for key, name in (("logo", LOGO), ("icon", ICON)):
         path = Path(assets_dir) / name
         if path.is_file():
             found[key] = path
     return found
 
 
-# Text and track colours for charts, per theme (Streamlit's own body-text colours). Lines and bars use
+# Charts only (never the logo): text and track colours, per theme (Streamlit's own body-text colours). Lines and bars use
 # colours chosen to keep at least 3:1 contrast on BOTH backgrounds, so they need no theme at all.
 CHART_TEXT = {"light": "#31333F", "dark": "#FAFAFA"}
 CHART_TRACK = {"light": "#D5DAE3", "dark": "#3D4150"}
@@ -80,24 +81,17 @@ def theme_type() -> str | None:
 
 
 def _theme() -> str:
-    """'dark' only when Streamlit clearly says dark; otherwise 'light' (also when it cannot be told)."""
+    """For CHART text colours only: 'dark' when Streamlit clearly says dark, otherwise 'light'."""
     return "dark" if theme_type() == "dark" else "light"
 
 
-def pick_logo(theme: str | None, images: dict[str, Path]) -> Path | None:
-    """The wide logo for a theme: dark TEXT ('light' file) on a light theme, pale text ('dark' file) on a
-    dark theme. An unknown theme gets the light-theme logo, because light is the default theme."""
-    wanted = "dark" if theme == "dark" else "light"
-    return images.get(wanted) or images.get("light") or images.get("dark")
-
-
 def show_logo(assets_dir: Path = ASSETS_DIR) -> bool:
-    """Show the wide logo in the sidebar, matched to the theme, with the icon as the small version.
+    """Show the wide logo in the sidebar, with the icon as the small version. The same files on every theme.
 
     Never raises: with missing or unreadable files the page simply has no logo. Returns True if shown.
     """
     images = brand_images(assets_dir)
-    wide = pick_logo(theme_type(), images)
+    wide = images.get("logo")
     if wide is None:
         return False
     try:
@@ -382,8 +376,8 @@ def timeline_chart(timeline: pd.DataFrame) -> alt.Chart:
 
 
 def logo_image(width: int = 380, assets_dir: Path = ASSETS_DIR) -> bool:
-    """Show the wide logo as a picture in the page (About page), matched to the theme. Never raises."""
-    wide = pick_logo(theme_type(), brand_images(assets_dir))
+    """Show the wide logo as a picture in the page (About page): the same plated logo on every theme."""
+    wide = brand_images(assets_dir).get("logo")
     if wide is None:
         return False
     try:
@@ -393,5 +387,5 @@ def logo_image(width: int = 380, assets_dir: Path = ASSETS_DIR) -> bool:
         return False
 
 
-# Kept for older callers; the About page now uses logo_image(), which follows the theme.
+# Kept for older callers; the About page uses logo_image().
 light_logo_image = logo_image
