@@ -1,7 +1,7 @@
-# Streamlit settings for the FairLend Watch dashboard.
-# The dashboard must never use the network: no usage statistics, and only this computer can open it.
+# Streamlit settings for the FairLend Watch dashboard. No secrets here, ever.
+# The dashboard must never use the network: no usage statistics.
+# The listening address is NOT set here, so Streamlit Community Cloud can choose its own.
+# Local runs keep the dashboard on this computer only by passing --server.address localhost
+# (dev.ps1 does this; the README's commands do too).
 [browser]
 gatherUsageStats = false
-
-[server]
-address = "localhost"

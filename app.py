@@ -2,7 +2,7 @@
 
 Run it from the project folder:
 
-    streamlit run app.py
+    streamlit run app.py --server.address localhost
 
 The other pages (Borrowers, Lenders, Export, About) live in pages/. All numbers
 come from src/dashboard_data.py, which reads lending.db and predictions.db only.

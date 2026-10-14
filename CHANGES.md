@@ -1,3 +1,15 @@
+# Changes after Phase 8B (listening address)
+
+- `.streamlit/config.toml` no longer sets `server.address`, so Streamlit Community Cloud can choose its own. It still turns usage statistics off and holds no secrets.
+- Local runs stay on this computer by passing `--server.address localhost` instead:
+  - `dev.ps1`: its one Streamlit start line, used with no switch and with `-Present`
+  - the README's start commands
+  - the hint printed by `build_all`
+  - the usage line in `app.py`
+- Checked live: `.\dev.ps1 -Present` listens on 127.0.0.1 only and its health check answers `ok`.
+- The README note in "Deploying to Streamlit Community Cloud" explains this, and warns that Streamlit started without the flag listens on every network interface.
+- Test: `test_streamlit_never_phones_home` now checks that `config.toml` sets no address and that every start command in `dev.ps1` and the README passes `--server.address localhost`.
+
 # Changes in Phase 8B (ready for Streamlit Community Cloud; not deployed)
 
 First-start build

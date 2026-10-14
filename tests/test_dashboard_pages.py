@@ -76,7 +76,15 @@ def test_the_check_catches_secret_and_network_use():
 def test_streamlit_never_phones_home():
     settings = (ROOT / ".streamlit" / "config.toml").read_text(encoding="utf-8")
     assert "gatherUsageStats = false" in settings
-    assert 'address = "localhost"' in settings
+    # The address is left to the host (Streamlit Community Cloud) ...
+    assert not [line for line in settings.splitlines() if line.strip().startswith("address")]
+    # ... and every local start command keeps the dashboard on this computer only.
+    script = (ROOT / "dev.ps1").read_text(encoding="utf-8")
+    starts = [line for line in script.splitlines() if "streamlit run" in line and not line.strip().startswith("#")]
+    assert starts and all("--server.address localhost" in line for line in starts)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    commands = [line for line in readme.splitlines() if line.strip().startswith("streamlit run")]
+    assert commands and all("--server.address localhost" in line for line in commands)
 
 
 # --- Every page runs, with the banner, on good data ------------------------------------------

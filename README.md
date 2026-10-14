@@ -49,8 +49,9 @@ pip install -r requirements-dev.txt
 #    dataset, message labels, data\borrower_scores.csv and data\lender_comparison.csv
 python -m src.build_all
 
-# 4. Open the dashboard (it opens in your browser at http://localhost:8501)
-streamlit run app.py
+# 4. Open the dashboard (it opens in your browser at http://localhost:8501).
+#    --server.address localhost keeps it on this computer only; .\dev.ps1 does this for you.
+streamlit run app.py --server.address localhost
 
 # 5. Run the tests (about 2 minutes)
 python -m pytest -q
@@ -782,7 +783,7 @@ py -3 -m venv .venv
 pip install -r requirements-dev.txt   # the app (requirements.txt) plus pytest and google-genai
 python -m src.build_all        # rebuilds the demo dataset, labels, model, scores and comparison
 python -m src.preflight        # every check must say PASS
-streamlit run app.py
+streamlit run app.py --server.address localhost
 ```
 
 **Two requirements files.** `requirements.txt` is what the running app needs (Streamlit
@@ -817,10 +818,11 @@ Fill in the "Deploy an app" form like this:
   it, if your workspace offers that.
 - If the first start shows "The demo could not be prepared (error code FW-...)", reboot the app
   from its menu; the code is in the app log.
-- `.streamlit/config.toml` keeps usage statistics off and holds no secrets.
-  `server.address = "localhost"` is for local runs. I expect Community Cloud to set the address
-  itself, but I could not check that: if the deployed app does not load, this line is the
-  first thing to look at.
+- `.streamlit/config.toml` keeps usage statistics off and holds no secrets. It does **not** set
+  the listening address, so Community Cloud can choose its own. Local runs stay on this
+  computer because `.\dev.ps1` (every switch that starts the dashboard, including `-Present`)
+  and the commands in this README pass `--server.address localhost`. If you start Streamlit
+  yourself, add that flag too: without it Streamlit listens on every network interface.
 
 ## License
 

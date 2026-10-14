@@ -58,7 +58,7 @@ def run(config_args: list[str], verbose: bool = False) -> int:
             return code or 1
         print(f"[{number}/{len(plan)}] {title} ... done in {time.perf_counter() - step_start:.1f}s")
     print(f"All steps finished in {time.perf_counter() - started:.1f}s. "
-          "Start the dashboard with: streamlit run app.py")
+          "Start the dashboard with: streamlit run app.py --server.address localhost")
     print("All data is SYNTHETIC.")
     return 0
 

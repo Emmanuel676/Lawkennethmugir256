@@ -60,7 +60,8 @@ if (-not $onlyChecks) {
             $env:FAIRLEND_PRESENT = "1"   # this run only
             Write-Host "== Presentation mode: demo data only; Data and Review pages are off." -ForegroundColor Yellow
         }
-        Invoke-Step "Dashboard (Ctrl+C to stop)" { & $python -m streamlit run app.py }
+        # --server.address localhost keeps local runs on this computer only (config.toml leaves it unset for the cloud).
+        Invoke-Step "Dashboard (Ctrl+C to stop)" { & $python -m streamlit run app.py --server.address localhost }
     }
     finally {
         $env:FAIRLEND_PRESENT = $previous
