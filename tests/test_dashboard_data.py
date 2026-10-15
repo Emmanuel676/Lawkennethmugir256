@@ -196,9 +196,9 @@ def test_unknown_borrower_raises(world):
 
 def test_late_night_and_third_party_flags_follow_config_and_recipient(world):
     messages = world["data"].messages
-    window = world["cfg"]["generator"]["late_night"]
+    window = world["cfg"]["lender_comparison"]["late_night_detect"]  # the detection window, not the generator's
     hours = messages["sent_at"].str.slice(11, 13).astype(int)
-    expected_late = (hours >= window["start_hour"]) | (hours < window["end_hour"])
+    expected_late = (hours >= window["start_hour"]) & (hours < window["end_hour"])
     assert (messages["late_night"] == expected_late).all()
     assert messages["late_night"].any() and not messages["late_night"].all()
     assert (messages["third_party"] == (messages["recipient_type"] == "third_party")).all()

@@ -35,6 +35,8 @@ htmlcov/
 # Everything in data/ except the empty placeholder. The demo is rebuilt from config.yaml + seed.
 data/*
 !data/.gitkeep
+# Phase 9A: synthetic sample lender packs (python -m src.make_sample_pack). Rebuilt from config.yaml; never committed.
+sample_pack/
 # The same file types anywhere else (a database or export saved outside data/ by mistake).
 *.db
 *.db-journal

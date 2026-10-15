@@ -135,6 +135,87 @@ def validate_config(cfg: dict) -> None:
     for key in ("predictions_db", "local_model", "datasets_dir", "active_dataset_file"):
         if key not in cfg["paths"]:
             raise ConfigError(f"paths is missing '{key}'.")
+    if "sample_pack" in cfg:  # optional: only src/make_sample_pack.py needs it
+        validate_sample_pack(cfg["sample_pack"])
+
+
+SAMPLE_PACK_SCENARIOS = ("baseline", "high_overlap", "cycling", "repayment_mix", "clean_control")
+PAYER_KINDS = ("on_time", "late_cleared", "not_paid")
+
+
+def _probability(value) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and 0 <= value <= 1
+
+
+def _range(value, minimum: int = 0) -> bool:
+    return (isinstance(value, list) and len(value) == 2 and all(_whole(v, minimum) for v in value)
+            and value[0] <= value[1])
+
+
+def validate_sample_pack(pack) -> None:
+    """Checks for the 'sample_pack' section (Phase 9A synthetic lender packs)."""
+    if not isinstance(pack, dict):
+        raise ConfigError("The 'sample_pack' section must be a mapping.")
+    for key in ("seed", "output_dir", "as_of_date", "fake_salt", "message_suffix", "lenders", "small_lender",
+                "loans", "borrowers", "repayment", "cyclers", "messages", "behaviour", "scenarios"):
+        if key not in pack:
+            raise ConfigError(f"sample_pack is missing '{key}'.")
+    if not _whole(pack["seed"], 0):
+        raise ConfigError("sample_pack.seed must be a whole number of 0 or more.")
+    if not isinstance(pack["fake_salt"], str) or "FAKE" not in pack["fake_salt"].upper():
+        raise ConfigError("sample_pack.fake_salt must be a text containing the word FAKE (it is never a real salt).")
+    letters = [lender.get("letter") for lender in pack["lenders"]]
+    if len(letters) != len(set(letters)) or not all(isinstance(x, str) and x.isalpha() for x in letters):
+        raise ConfigError("sample_pack.lenders: every lender needs a different letter.")
+    for lender in pack["lenders"]:
+        if not str(lender.get("name", "")).endswith("(Demo)"):
+            raise ConfigError("sample_pack.lenders: every name must end in '(Demo)'.")
+        if lender.get("size") not in SIZES or lender.get("behaviour") not in BEHAVIOURS:
+            raise ConfigError(f"sample_pack.lenders {lender.get('letter')}: size or behaviour is not valid.")
+        if isinstance(lender.get("weight"), bool) or not isinstance(lender.get("weight"), (int, float)) \
+                or lender["weight"] <= 0:
+            raise ConfigError(f"sample_pack.lenders {lender.get('letter')}: weight must be more than 0.")
+    if pack["small_lender"].get("letter") not in letters:
+        raise ConfigError("sample_pack.small_lender.letter must be one of the sample_pack lenders.")
+    split = pack["repayment"]["payer_split"]
+    if set(split) != set(PAYER_KINDS) or not math.isclose(sum(split.values()), 1.0, abs_tol=1e-6):
+        raise ConfigError(f"sample_pack.repayment.payer_split needs {PAYER_KINDS} adding up to 1.")
+    for section, key in (("repayment", "reborrow_prob"), ("repayment", "link_share"),
+                         ("messages", "late_night_reminder_prob"), ("messages", "abusive_before_due_prob"),
+                         ("messages", "exact_balance_prob"), ("messages", "late_cleared_overdue_prob"),
+                         ("messages", "shaming_third_party_prob"), ("messages", "mixed_language_prob")):
+        if not _probability(pack[section].get(key)):
+            raise ConfigError(f"sample_pack.{section}.{key} must be a number from 0 to 1.")
+    for section, key in (("repayment", "late_clear_days"), ("repayment", "not_paid_stop_day"),
+                         ("repayment", "reborrow_gap_days"), ("repayment", "history_days"),
+                         ("cyclers", "start_days_ago"), ("cyclers", "pay_days_before_switch"),
+                         ("cyclers", "payoff_delay_days"), ("messages", "staff_hours"),
+                         ("messages", "reminders_per_loan"), ("messages", "overdue_messages")):
+        if not _range(pack[section].get(key)):
+            raise ConfigError(f"sample_pack.{section}.{key} must be [min, max] whole numbers with min <= max.")
+    if pack["messages"]["staff_hours"][1] > 23:
+        raise ConfigError("sample_pack.messages.staff_hours must lie between 0 and 23.")
+    loans = pack["loans"]
+    if not 0 < loans["principal_min"] <= loans["principal_typical"] <= loans["principal_max"]:
+        raise ConfigError("sample_pack.loans: need 0 < principal_min <= principal_typical <= principal_max.")
+    if not loans["term_days"] < loans["late_charge_day"]:
+        raise ConfigError("sample_pack.loans.late_charge_day must come after term_days.")
+    if pack["cyclers"]["pay_days_before_switch"][1] >= loans["term_days"]:
+        raise ConfigError("sample_pack.cyclers.pay_days_before_switch must end before the loan term.")
+    for kind in BEHAVIOURS:
+        probs = pack["behaviour"].get(kind, {}).get("class_probs", {})
+        if set(probs) != set(MESSAGE_CLASSES) or not math.isclose(sum(probs.values()), 1.0, abs_tol=1e-6):
+            raise ConfigError(f"sample_pack.behaviour.{kind}.class_probs needs the four classes adding up to 1.")
+    unknown = sorted(set(pack["scenarios"]) - set(SAMPLE_PACK_SCENARIOS))
+    if unknown:
+        raise ConfigError(f"sample_pack.scenarios: unknown scenario(s) {unknown}.")
+    for name, spec in pack["scenarios"].items():
+        if not _whole(spec.get("borrowers"), 50) or spec["borrowers"] > 5000:
+            raise ConfigError(f"sample_pack.scenarios.{name}.borrowers must be 50 to 5000.")
+        if not (_probability(spec.get("multi_lender_share")) and _probability(spec.get("cycler_share"))):
+            raise ConfigError(f"sample_pack.scenarios.{name}: multi_lender_share and cycler_share must be 0 to 1.")
+        if spec.get("payer_scope") not in ("loan", "borrower") or not isinstance(spec.get("abusive"), bool):
+            raise ConfigError(f"sample_pack.scenarios.{name}: payer_scope is loan or borrower; abusive is true/false.")
 
 
 def _validate_risk(risk: dict) -> None:
@@ -180,6 +261,8 @@ def _validate_risk(risk: dict) -> None:
 
     if risk["velocity_window_days"] < 1:
         raise ConfigError("risk.velocity_window_days must be 1 or more.")
+    if not isinstance(risk.get("cycling_require_different_lender", True), bool):
+        raise ConfigError("risk.cycling_require_different_lender must be true or false.")
 
 
 def _validate_evaluation(evaluation: dict) -> None:
@@ -288,6 +371,12 @@ def _validate_lender_comparison(comparison: dict) -> None:
     confidence = comparison.get("confidence")
     if not isinstance(confidence, (int, float)) or not 0.5 <= confidence < 1:
         raise ConfigError("lender_comparison.confidence must be between 0.5 and 1 (for example 0.95).")
+    window = comparison.get("late_night_detect")
+    if not isinstance(window, dict) or not all(_whole(window.get(k), 0) and window[k] <= 23
+                                               for k in ("start_hour", "end_hour")):
+        raise ConfigError("lender_comparison.late_night_detect needs start_hour and end_hour, whole hours 0 to 23.")
+    if window["start_hour"] == window["end_hour"]:
+        raise ConfigError("lender_comparison.late_night_detect: start_hour and end_hour must differ.")
 
 
 def _validate_dashboard(dashboard: dict) -> None:

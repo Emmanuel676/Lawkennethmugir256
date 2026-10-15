@@ -1,3 +1,16 @@
+# Changes in Phase 9A (sample lender packs and rule checks)
+
+- **Part 1 checks** (measured on throwaway data, nothing kept). With daily repayments, the old cycling rule counted a borrower who repays one lender and re-borrows from it within 2 days: 20 to 38% of 600 single-lender borrowers got a cycling event (stop rule: 5%). A 21:00 late-night cut-off flagged 17 to 19% of messages from a lender whose staff work until midnight.
+- **Cycling rule (approved):** an event now needs the repaid loan and the new loan to be from different lenders (`risk.cycling_require_different_lender: true`; `false` gives the old rule). Single-lender daily repayers: 0% at every re-borrow gap. Genuine cross-lender cyclers: unchanged. Demo: 6 borrowers lose one cycling event each; no band, precision, recall or headline changes.
+- **Late-night detection window (approved):** `lender_comparison.late_night_detect` is 00:00 to 04:59, used by the lender table, borrower counts and dashboard flags. `is_late_night()` used to read the generator's window (`generator.late_night`, 21:00 to 05:59), which is unchanged, so the demo data is unchanged. Demo late-night messages: 5,012 before, 2,794 after. The demo script number for B02339 went from 35 to 20.
+- **Sample packs:** `src/make_sample_pack.py` builds five synthetic scenarios (baseline, high_overlap, cycling, repayment_mix, clean_control), each with four "(Demo)" lenders, borrower codes from invented phones with a fake salt, daily repayments, 30-day loans, 20% flat interest, 3-day grace and a late charge at day 33. The realism settings (a) to (f) and the re-borrow gap (0 to 14 days) live under `sample_pack`. Every folder has CSV per table, per lender and combined. The answer key is in `sample_pack/_answer_keys` (tests and evaluation only). The seed is not stored in any file.
+- `src/evaluate_sample_pack.py` gives the expected results through the real importer. `docs/ONBOARDING_DEMO.md` has the walkthrough and the table. `docs/REPAYMENT_PERFORMANCE_DESIGN.md` is the design-only proposal.
+- **Known limit found:** a borrower repaying lender A daily while taking a loan at lender B still gets cycling events (113 of 150 multi-lender borrowers in baseline; 19 lifted to medium). Proposed, not built: count only a repayment that clears or nearly clears the old loan.
+- **Tests:**
+  - `tests/test_phase9a_rules.py` covers both rules, their settings and the demo fingerprint.
+  - `tests/test_sample_pack.py` checks the import format, the real importer, cross-lender matching, reproducibility, no stored seed, the scenarios, the realism settings, and that detection code never reads the answer key.
+  - Three late-night tests were updated to the detection window.
+
 # Changes in Phase 8D (one logo that reads on any theme, shorter tile labels)
 
 - **Why the logo still failed after 8C:** the sidebar logo was still one of two files, chosen from `st.context.theme.type`. Streamlit 1.65 can report that wrongly on a session's first run. In your case the browser was in dark mode while the app was light, and the pale-text file was chosen: "FairLend" at 1.02:1 on the light sidebar.

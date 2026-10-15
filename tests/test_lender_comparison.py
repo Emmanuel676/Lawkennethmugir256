@@ -123,15 +123,23 @@ def test_abusive_classes_come_from_the_config(cfg):
 
 # --- Late night and third party ------------------------------------------------------
 
-def test_late_night_share_uses_the_configured_hours(cfg):
+def test_late_night_share_uses_the_detection_window(cfg):
     world = Messages()
-    for time in ("21:00:00", "05:59:00", "06:00:00", "20:59:00", "23:30:00"):
+    for time in ("21:00:00", "05:59:00", "06:00:00", "20:59:00", "23:30:00", "00:10:00", "04:59:00"):
         world.add("A", "normal", sent_at=f"2026-09-01 {time}")
-    assert world.compare(cfg).loc["A", "late_night_share"] == pytest.approx(3 / 5)  # 21:00 to 05:59
+    assert cfg["lender_comparison"]["late_night_detect"] == {"start_hour": 0, "end_hour": 5}
+    assert world.compare(cfg).loc["A", "late_night_share"] == pytest.approx(2 / 7)  # 00:10 and 04:59 only
 
-    narrow = copy.deepcopy(cfg)
-    narrow["generator"]["late_night"] = {"start_hour": 23, "end_hour": 5}
-    assert world.compare(narrow).loc["A", "late_night_share"] == pytest.approx(1 / 5)  # only 23:30
+    wrapped = copy.deepcopy(cfg)
+    wrapped["lender_comparison"]["late_night_detect"] = {"start_hour": 23, "end_hour": 5}
+    assert world.compare(wrapped).loc["A", "late_night_share"] == pytest.approx(3 / 7)  # 23:30, 00:10, 04:59
+
+
+def test_the_generator_window_does_not_change_detection(cfg):
+    world = Messages().add("A", "normal", sent_at="2026-09-01 22:00:00")
+    other = copy.deepcopy(cfg)
+    other["generator"]["late_night"] = {"start_hour": 20, "end_hour": 8}
+    assert world.compare(cfg).loc["A", "late_night_share"] == world.compare(other).loc["A", "late_night_share"] == 0
 
 
 def test_third_party_share_uses_recipient_type_not_the_label(cfg):
@@ -166,7 +174,7 @@ def test_explanations_say_why_a_lender_is_unranked(cfg):
 
 def test_borrower_harassment_summary_counts(cfg):
     world = (Messages()
-             .add("A", "threat", 2, borrower_id="B1", sent_at="2026-09-01 22:00:00")
+             .add("A", "threat", 2, borrower_id="B1", sent_at="2026-09-01 01:30:00")
              .add("A", "shaming_third_party", 1, borrower_id="B1", recipient_type="third_party")
              .add("A", "normal", 3, borrower_id="B1")
              .add("A", "firm_pressure", 1, borrower_id="B2", sent_at="2026-09-01 02:00:00"))

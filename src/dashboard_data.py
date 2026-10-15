@@ -44,7 +44,7 @@ SIGNAL_DESCRIPTIONS = {
     "open_lenders": "Distinct lenders among unpaid loans (one lender scores 0).",
     "debt_to_income": "Total owed on unpaid loans divided by monthly income.",
     "arrears": "Share of what is owed that sits in loans in arrears.",
-    "cycling": "Recent loans issued within a few days of repaying a different loan.",
+    "cycling": "Recent loans issued within a few days of repaying a different loan from another lender.",
     "loan_velocity": "Loans of any status issued in the recent window.",
 }
 CLASS_DESCRIPTIONS = {

@@ -121,6 +121,10 @@ Next time, you only need to `cd` into the folder, activate the environment
 | `dev.ps1` | Phase 5.2: `-Install`, `-Rebuild`, `-Test`, `-Preflight`, `-Present`; no switch starts the dashboard. |
 | `docs/DEMO_SCRIPT.md` | Phase 5.2: the 5-minute spoken demo script, caveats and hard questions. |
 | `src/build_all.py` | Phase 4: builds dataset, labels, scores and lender comparison in one command. |
+| `src/make_sample_pack.py` | Phase 9A: `python -m src.make_sample_pack` (or `.\dev.ps1 -SamplePack`) writes five synthetic sample lender packs, CSV per table, to `sample_pack\` (git-ignored). Settings: `sample_pack` in `config.yaml`. |
+| `src/evaluate_sample_pack.py` | Phase 9A: imports every pack with the real importer, scores it and compares with the packs' answer key (evaluation only). |
+| `docs/ONBOARDING_DEMO.md` | Phase 9A: step-by-step import walkthrough (lender A, B, C) and the expected results per scenario. |
+| `docs/REPAYMENT_PERFORMANCE_DESIGN.md` | Phase 9A: design-only proposal for a repayment performance view (not built). |
 | `tests/` | Automatic checks (see CHANGES.md for the count), including headless runs of every dashboard page. |
 | `data/` | Generated databases, `predictions.db`, the trained model and CSV outputs. Rebuilt by commands, so not stored in Git. |
 | `.env.example` | Names the Gemini key variable. Nothing in the project reads `.env`: set `GEMINI_API_KEY` for one PowerShell session instead (see the Gemini section). Never commit `.env`. |
@@ -199,7 +203,7 @@ the score runs from 0 to 100.
 | Open lenders | Distinct lenders among unpaid loans (1 lender = 0 points) | 5 lenders | 25 |
 | Debt to income | Total owed on unpaid loans / monthly income | 2.0 x income | 30 |
 | Arrears | Share of what is owed that sits in loans in arrears | 100% | 20 |
-| Cycling | Recent loans (last 180 days) issued within 2 days of repaying a *different* loan | 3 events | 15 |
+| Cycling | Recent loans (last 180 days) issued within 2 days of repaying a different loan from another lender | 3 events | 15 |
 | Loan velocity | Loans of any status issued in the last 60 days | 4 loans | 10 |
 
 Bands: **low** below 35, **medium** from 35, **high** from 60. Every number
@@ -210,7 +214,7 @@ is in the `risk` section of `config.yaml`. Each borrower gets a breakdown
 B02555  score 89.0  band high
   - Owes UGX 748,400, which is 2.1 times monthly income (30.0 of 30 points).
   - Has unpaid loans with 6 different lenders at the same time (25.0 of 25 points).
-  - 4 new loans taken within 2 days of repaying a different loan (borrowing to repay) (15.0 of 15 points).
+  - 4 new loans taken within 2 days of repaying a different loan from another lender (borrowing to repay) (15.0 of 15 points).
   ...
 ```
 
@@ -287,6 +291,15 @@ messages (`generator.min_lender_messages`) are **not ranked**. The others are
 ranked by the **lower end** of the interval, so a small lender with a few bad
 messages cannot top the list by luck. Results go to `data/lender_comparison.csv`;
 its first line is a `#` notice, so read it with `comment="#"`.
+
+**Which hours count as late night.** Detection (the lender table, the borrower
+counts and the dashboard flags) counts a message as late-night when it was sent
+from **00:00 to 04:59** (`lender_comparison.late_night_detect`, start 0, end 5).
+The demo generator uses a different window, **21:00 to 05:59**
+(`generator.late_night`), only to decide when its synthetic messages are sent;
+it is left unchanged so the demo data stays the same. The two differ because a
+field visit found staff at a daily lender working until midnight: with a 21:00
+cut-off, 17 to 19% of ordinary working-hours messages would be flagged.
 
 ### Results on the default dataset (seed 42)
 

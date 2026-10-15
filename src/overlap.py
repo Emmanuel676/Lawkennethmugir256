@@ -21,7 +21,10 @@ Signals per borrower (unpaid = any loan whose status is not 'repaid'):
   loans_in_window  loans of any status issued in the last velocity_window_days
   cycling_events   distinct loans, issued in the last lookback_days, that were
                    issued within match_days (either side) of the borrower repaying
-                   a DIFFERENT loan, i.e. borrowing to repay
+                   a DIFFERENT loan, i.e. borrowing to repay. With
+                   risk.cycling_require_different_lender (default true) the repaid
+                   loan must also be from a DIFFERENT LENDER, so a borrower who pays
+                   one lender daily and re-borrows from it is not counted (Phase 9A)
 
 Each signal becomes a strength from 0 to 1 (1 once it reaches its full_at value
 in config.yaml), times its weight. The weights add up to 100, so the score runs
@@ -85,16 +88,26 @@ def as_of_date(conn: sqlite3.Connection) -> pd.Timestamp:
     return pd.Timestamp(value)
 
 
+def cycling_requires_different_lender(cfg: dict) -> bool:
+    """risk.cycling_require_different_lender; true when the setting is absent (Phase 9A default)."""
+    return bool(cfg["risk"].get("cycling_require_different_lender", True))
+
+
 def _cycling_events(
-    loans: pd.DataFrame, repayments: pd.DataFrame, as_of: pd.Timestamp, match_days: int, lookback_days: int
+    loans: pd.DataFrame, repayments: pd.DataFrame, as_of: pd.Timestamp, match_days: int, lookback_days: int,
+    require_different_lender: bool = True,
 ) -> pd.Series:
-    """Per borrower, how many recent loans were issued around the repayment of a different loan."""
+    """Per borrower, how many recent loans were issued around the repayment of a different loan
+    (and, with require_different_lender, of a loan from a different lender)."""
     days_ago = (as_of - loans["issue_date"]).dt.days
-    recent = loans.loc[(days_ago >= 0) & (days_ago <= lookback_days), ["loan_id", "borrower_id", "issue_date"]]
+    recent = loans.loc[(days_ago >= 0) & (days_ago <= lookback_days),
+                       ["loan_id", "borrower_id", "lender_id", "issue_date"]]
     pairs = recent.merge(repayments, on="borrower_id")
     gap = (pairs["txn_date"] - pairs["issue_date"]).dt.days.abs()
-    matched = pairs[(pairs["linked_loan_id"] != pairs["loan_id"]) & (gap <= match_days)]
-    return matched.groupby("borrower_id")["loan_id"].nunique()
+    keep = (pairs["linked_loan_id"] != pairs["loan_id"]) & (gap <= match_days)
+    if require_different_lender:
+        keep &= pairs["repaid_lender_id"] != pairs["lender_id"]
+    return pairs[keep].groupby("borrower_id")["loan_id"].nunique()
 
 
 def score_borrowers(conn: sqlite3.Connection, cfg: dict) -> pd.DataFrame:
@@ -111,8 +124,9 @@ def score_borrowers(conn: sqlite3.Connection, cfg: dict) -> pd.DataFrame:
         "SELECT loan_id, borrower_id, lender_id, amount_outstanding, issue_date, status FROM loans", conn)
     loans["issue_date"] = pd.to_datetime(loans["issue_date"])
     repayments = pd.read_sql_query(
-        """SELECT borrower_id, txn_date, linked_loan_id FROM transactions
-           WHERE direction = 'out' AND counterparty_type = 'lender' AND linked_loan_id IS NOT NULL""",
+        """SELECT t.borrower_id, t.txn_date, t.linked_loan_id, l.lender_id AS repaid_lender_id
+           FROM transactions t LEFT JOIN loans l ON l.loan_id = t.linked_loan_id
+           WHERE t.direction = 'out' AND t.counterparty_type = 'lender' AND t.linked_loan_id IS NOT NULL""",
         conn,
     )
     repayments["txn_date"] = pd.to_datetime(repayments["txn_date"])
@@ -126,7 +140,8 @@ def score_borrowers(conn: sqlite3.Connection, cfg: dict) -> pd.DataFrame:
     in_window = (loans[(days_ago >= 0) & (days_ago <= risk["velocity_window_days"])]
                  .groupby("borrower_id").size().rename("loans_in_window"))
     cycling = _cycling_events(
-        loans, repayments, as_of, risk["cycling"]["match_days"], risk["cycling"]["lookback_days"]
+        loans, repayments, as_of, risk["cycling"]["match_days"], risk["cycling"]["lookback_days"],
+        cycling_requires_different_lender(cfg),
     ).rename("cycling_events")
 
     out = borrowers.set_index("borrower_id")
@@ -185,7 +200,8 @@ def explain(row, cfg: dict) -> list[str]:
                            f"{float(row['debt_to_income']):.1f} times monthly income"),
         "arrears": f"{float(row['arrears_share']):.0%} of what is owed is in arrears",
         "cycling": (f"{plural(int(row['cycling_events']), 'new loan')} taken within "
-                    f"{risk['cycling']['match_days']} days of repaying a different loan (borrowing to repay)"),
+                    f"{risk['cycling']['match_days']} days of repaying a different loan"
+                    f"{' from another lender' if cycling_requires_different_lender(cfg) else ''} (borrowing to repay)"),
         "loan_velocity": (f"Took {plural(int(row['loans_in_window']), 'loan')} in the last "
                           f"{risk['velocity_window_days']} days"),
     }

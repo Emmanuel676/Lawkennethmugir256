@@ -7,6 +7,7 @@
     .\dev.ps1 -Present        # start the dashboard in presentation mode (demo data only)
     .\dev.ps1 -Install        # create .venv if needed and install requirements-dev.txt (app + tests + Gemini check)
     .\dev.ps1 -Rebuild        # rebuild the demo dataset, labels, scores and lender comparison
+    .\dev.ps1 -SamplePack     # write the synthetic sample lender packs to sample_pack\ (git-ignored)
     .\dev.ps1 -Test           # run the automatic checks
     .\dev.ps1 -Preflight      # check everything is ready for a demo (PASS/FAIL per check)
     .\dev.ps1 -Install -Rebuild -Preflight -Present   # switches can be combined; they run in this order
@@ -18,6 +19,7 @@
 param(
     [switch]$Install,
     [switch]$Rebuild,
+    [switch]$SamplePack,
     [switch]$Test,
     [switch]$Preflight,
     [switch]$Present
@@ -49,10 +51,11 @@ if (-not (Test-Path $python)) {
 }
 
 if ($Rebuild)   { Invoke-Step "Rebuild the demo" { & $python -m src.build_all } }
+if ($SamplePack) { Invoke-Step "Sample lender packs (synthetic)" { & $python -m src.make_sample_pack } }
 if ($Test)      { Invoke-Step "Tests" { & $python -m pytest -q } }
 if ($Preflight) { Invoke-Step "Preflight" { & $python -m src.preflight } }
 
-$onlyChecks = ($Install -or $Rebuild -or $Test -or $Preflight) -and -not $Present
+$onlyChecks = ($Install -or $Rebuild -or $SamplePack -or $Test -or $Preflight) -and -not $Present
 if (-not $onlyChecks) {
     $previous = $env:FAIRLEND_PRESENT
     try {

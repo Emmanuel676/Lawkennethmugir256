@@ -15,7 +15,9 @@ Per lender:
   shaming_share          share labelled shaming_third_party
   third_party_share      share sent to someone other than the borrower (recipient_type,
                          a fact of the message, not a classifier guess)
-  late_night_share       share sent in the generator.late_night hours
+  late_night_share       share sent in the lender_comparison.late_night_detect hours (Phase 9A: a
+                         detection-side window, separate from generator.late_night, which only
+                         shapes the synthetic demo)
   messages_per_borrower  messages per borrower it messaged
 
 Lenders with fewer than generator.min_lender_messages messages are not ranked
@@ -41,7 +43,6 @@ import pandas as pd
 
 from src.config import load_config
 from src.datasets import DatasetError, paths_for
-from src.generate_data import late_night_hours
 from src.overlap import DEFAULT_NOTICE, connect_read_only
 from src.predictions import check_matches, human_share, read_effective_labels
 
@@ -78,11 +79,25 @@ def _labelled_messages(messages: pd.DataFrame, labels: pd.DataFrame) -> pd.DataF
     return merged
 
 
+def detect_late_night_hours(cfg: dict) -> list[int]:
+    """Hours counted as late night by DETECTION (lender_comparison.late_night_detect).
+
+    start_hour is included and end_hour is not: start 0, end 5 means 00:00 to 04:59. A window may wrap past
+    midnight (start 21, end 6 means 21:00 to 05:59). This is deliberately not generator.late_night, which only
+    shapes the synthetic demo: lenders whose staff work until midnight must not be flagged for working hours.
+    """
+    window = cfg["lender_comparison"]["late_night_detect"]
+    start, end = int(window["start_hour"]), int(window["end_hour"])
+    if start < end:
+        return list(range(start, end))
+    return [h for h in range(24) if h >= start or h < end]
+
+
 def is_late_night(sent_at: pd.Series, cfg: dict) -> pd.Series:
-    """True for each sent_at timestamp whose hour is in the generator.late_night window."""
+    """True for each sent_at timestamp whose hour is in the lender_comparison.late_night_detect window."""
     # A message stored with a date only has no hour, so it can never count as late at night.
     hours = pd.to_numeric(sent_at.astype(str).str.slice(11, 13), errors="coerce")
-    return hours.isin(late_night_hours(cfg))
+    return hours.isin(detect_late_night_hours(cfg))
 
 
 def compare_lenders(messages: pd.DataFrame, labels: pd.DataFrame, lenders: pd.DataFrame, cfg: dict) -> pd.DataFrame:
