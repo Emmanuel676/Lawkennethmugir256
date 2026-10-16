@@ -1,3 +1,43 @@
+# Changes in Phase 10 (Repayments page, v1)
+
+- **New page `pages/7_Repayments.py` and module `src/repayments.py`** (read-only on lending.db, like overlap.py).
+  - Every page says it is a follow-up prompt, not a verdict or a credit score.
+  - Statuses per loan: current, past due in grace, on time, late within grace, late beyond grace, overdue but
+    paying, not paying, and unknown (repaid with no linked repayment; never guessed).
+  - "Past due, in grace" was added because the design did not cover an unpaid loan inside the grace days.
+  - A borrower takes the worst status of their loans; "unknown" ranks just above "on time".
+- **On the page:**
+  - status tiles, with UGX owed in compact form and the exact amount in the help
+  - a status mix per lender (under 50 loans: "too small to compare"), with a table in words
+  - ageing buckets of unpaid loans
+  - a follow-up list (borrower code, overdue lenders, status, days past due, UGX owed, loans overdue, risk band,
+    open lenders), filterable, sortable and downloadable as CSV with the `#` notice line
+  - the known limits
+- **Presentation mode:** the page works there, like the Export page (demo only, downloads allowed).
+- **Settings:** a new `repayments` section (grace_days 3, not_paying_after_days 30, ageing_bucket_edges
+  [3, 30, 60, 90], min_loans_to_compare 50), validated with plain errors. The first bucket edge must equal
+  grace_days.
+- **Demo** (one repayment per loan, so the page says so): 11,158 loans.
+  - 29.2% on time, 22.8% late within grace, 0% late beyond grace
+  - 12.5% not paying, 0.8% overdue but paying, 0.8% in grace, 33.8% current, 0% unknown
+  - UGX 1,208,490,700 owed on unpaid loans; 885 borrowers in the follow-up list
+- **Speed** (demo, 5,000 borrowers): first visit after the Overview has loaded 2.3 s, later runs and filter
+  changes about 0.5 s; a cold start of the whole app is 5.4 s.
+- **Evaluation** (`src/evaluate_sample_pack.py` only):
+  - the page's per-borrower status agrees with the answer-key payer groups for 100% of decided borrowers in all
+    five packs
+  - per loan, 99.3 to 99.8% agree; the misses are late loans whose last repayment had no link
+  - optimistic, because the packs follow the page's own rules
+- **Docs:** README (folder table, page table, a Repayments section), docs/ONBOARDING_DEMO.md (step 6b and a
+  per-scenario table), docs/DEMO_SCRIPT.md (an optional 45-second segment; existing steps unchanged).
+- **Guided Demo:** left alone. Adding a step would change its six cases and the tests that check them.
+- **Tests:**
+  - `tests/test_repayments.py` (20) covers every status and boundary, unknown without a link, not paying
+    against overdue but paying, the worst-status roll-up, ageing buckets, follow-up filters and the CSV notice,
+    config errors, the page headless in normal and presentation mode, no answer-key or label access, and the
+    demo fingerprint.
+  - The page list and answer-key checks now include the page and the module.
+
 # Changes in Phase 9B (second cycling correction, payer split per borrower)
 
 - **Cycling rule (approved):** an event now also needs the repayment near the new loan to CLEAR the old loan: the

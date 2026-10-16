@@ -304,6 +304,14 @@ dashboard:
   concern_min_abusive_messages: 3
   example_seed: 7                 # fixed seed for picking example messages (same examples every run)
 
+# Phase 10: the Repayments page (src/repayments.py). A follow-up prompt, not a verdict or a credit score.
+# Grace and the not-paying window differ by lender; these defaults come from one field visit (daily lender).
+repayments:
+  grace_days: 3                  # days after the due date before a loan counts as late beyond grace (sample_pack too)
+  not_paying_after_days: 30      # past due + grace and no linked repayment in this many days = "not paying"
+  ageing_bucket_edges: [3, 30, 60, 90]   # unpaid loans: 1-3 days (grace), 4-30, 31-60, 61-90, over 90 days past due
+  min_loans_to_compare: 50       # lenders with fewer loans are shown but marked "too small to compare"
+
 # Featured cases for the Guided Demo page (Phase 5.2). Picked BY RULES FROM COMPUTED SIGNALS ONLY
 # (scores, bands, message labels), never from answer labels. Ties go to the lowest id.
 demo:

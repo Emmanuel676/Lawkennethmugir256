@@ -124,7 +124,9 @@ Next time, you only need to `cd` into the folder, activate the environment
 | `src/make_sample_pack.py` | Phase 9A: `python -m src.make_sample_pack` (or `.\dev.ps1 -SamplePack`) writes five synthetic sample lender packs, CSV per table, to `sample_pack\` (git-ignored). Settings: `sample_pack` in `config.yaml`. |
 | `src/evaluate_sample_pack.py` | Phase 9A: imports every pack with the real importer, scores it and compares with the packs' answer key (evaluation only). |
 | `docs/ONBOARDING_DEMO.md` | Phase 9A: step-by-step import walkthrough (lender A, B, C) and the expected results per scenario. |
-| `docs/REPAYMENT_PERFORMANCE_DESIGN.md` | Phase 9A: design-only proposal for a repayment performance view (not built). |
+| `docs/REPAYMENT_PERFORMANCE_DESIGN.md` | Phase 9A: the design of the repayment performance view (v1 built in Phase 10). |
+| `src/repayments.py` | Phase 10: repayment status per loan and per borrower, ageing buckets, the follow-up list. Reads `lending.db` only. |
+| `pages/7_Repayments.py` | Phase 10: the Repayments page. |
 | `tests/` | Automatic checks (see CHANGES.md for the count), including headless runs of every dashboard page. |
 | `data/` | Generated databases, `predictions.db`, the trained model and CSV outputs. Rebuilt by commands, so not stored in Git. |
 | `.env.example` | Names the Gemini key variable. Nothing in the project reads `.env`: set `GEMINI_API_KEY` for one PowerShell session instead (see the Gemini section). Never commit `.env`. |
@@ -352,7 +354,7 @@ harder to separate.
 > Every page shows the synthetic-data notice and the line **"Flags prompt a
 > human to look. They are not findings and not a verdict."**
 
-`streamlit run app.py` opens five pages. They read `lending.db` and
+`streamlit run app.py` opens the Overview and the pages below. They read `lending.db` and
 `predictions.db` only. They never read the answer labels, never use the network
 and need no API key. Bands are always written as words (low / medium / high),
 never shown by colour alone. If the data is missing or out of date, each page
@@ -365,6 +367,7 @@ shows the PowerShell commands to fix it instead of an error.
 | **Lenders** | The ranked table (rank, size, messages, abusive share with interval, threat, shaming, third-party and late-night shares), the interval chart, a separate "Too few messages to rank" section, and example threat and shaming messages for any lender (the same examples every time). |
 | **Export** | Downloads of the flagged borrowers (medium and high by default; adjustable) and the lender comparison, with row counts. |
 | **About** | What the system does, the score signals and weights (read from `config.yaml`), the four message classes, ethics and limits, and the known weak spots. |
+| **Repayments** (Phase 10) | Who paid on time, who paid late and who is not paying: status shares, status mix per lender, unpaid loans by days past due, and a follow-up list with a CSV download. See below. |
 
 **Name and logo.** The product name and tagline come from `project.name` and
 `project.tagline` in `config.yaml` and appear in every page header and in the
@@ -410,6 +413,45 @@ harassed. Note that **109 borrowers in the low band received 3 or more abusive
 messages**. Their debt looks manageable but their messages do not. They are not
 in the "flagged and harassed" number, so find them on the Borrowers page with
 band = low and a minimum of 3 abusive messages.
+
+## Repayments page (Phase 10)
+
+> **A follow-up prompt, not a verdict or a credit score.** It shows repayment events so a person knows whose
+> file to open. A repayment status is not proof of wrongdoing by a borrower or a lender.
+
+`src/repayments.py` reads loans and the repayments linked to them (`lending.db` only, never the answer labels or
+a sample pack's answer key). Each loan gets one status on the as-of date (settings: `repayments` in `config.yaml`):
+
+| Status | Rule |
+|---|---|
+| Current | not repaid and not yet due |
+| Past due, in grace | not repaid, 1 to `grace_days` (3) days past the due date |
+| On time | repaid; last linked repayment on or before the due date |
+| Late within grace | repaid; last linked repayment 1 to 3 days after the due date (day 31 to 33 of a 30-day loan) |
+| Late beyond grace | repaid; last linked repayment more than 3 days after the due date |
+| Overdue but paying | not repaid, past due plus grace, with a linked repayment in the last `not_paying_after_days` (30) days |
+| Not paying | not repaid, past due plus grace, with no linked repayment in the last 30 days |
+| Unknown (no link) | repaid but no linked repayment, so the date it was cleared cannot be known. Never guessed. |
+
+"Past due, in grace" is not in the design document's list; it covers an unpaid loan inside the grace days. A
+borrower's status is the worst of their loans ("unknown" ranks just above "on time", so missing information is
+never shown as a good record). The page shows the shares, a status mix per lender (lenders under 50 loans are
+marked "too small to compare"), unpaid loans by days past due (1-3 grace, 4-30, 31-60, 61-90, over 90), and a
+**follow-up list**: borrower code, lenders with overdue loans, status, days past due, UGX owed, loans overdue,
+risk band and open lenders. It can be filtered by lender, status and band, sorted, and downloaded as CSV with
+the dataset's `#` notice line. Like the Export page, it works in presentation mode (demo data only).
+
+**Known limits, also on the page:** it needs `linked_loan_id` on repayments (a repaid loan without a linked
+repayment is "unknown"; a loan still being paid without links shows as not paying; if a loan's true last
+repayment has no link, an earlier one is taken as the clearing date); lenders differ on grace rules; the
+defaults come from one lender.
+
+**On the demo** every loan was repaid in one payment, so "overdue but paying" is rare (93 loans) and late
+repayments are all within grace: 29.2% on time, 22.8% late within grace, 12.5% not paying, 33.8% current; 885
+borrowers in the follow-up list. The daily-repayment story is shown on the sample packs
+(docs/ONBOARDING_DEMO.md). On the packs the page's status matches how each borrower was generated for 100% of
+decided borrowers and 99.3 to 99.8% of loans; every loan-level miss is a late loan whose last repayment had no
+link. That agreement is optimistic: the packs follow the page's own rules.
 
 ## Bringing your own data (Phase 4B)
 

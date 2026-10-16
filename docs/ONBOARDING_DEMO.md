@@ -100,6 +100,35 @@ Open **Borrowers**. In the sidebar set **Minimum open lenders** to 2: 83 borrowe
 Open **Export**. Keep **Bands to include** at high and medium: **"37 borrowers will be exported."** Press
 **Download flagged borrowers (CSV)**. The first line of the file is the `#` notice.
 
+### 6b. Repayments: who is not paying (Phase 10)
+
+Open **Repayments** (still with lenders A, B and C imported).
+
+- **Say first:** "This is a follow-up prompt, not a verdict or a credit score."
+- **Tiles** (shares of 1,887 loans): **On time 46.1%**, **Late within grace 4.3%**, **Late beyond grace 24.0%**,
+  **Not paying 7.2%**, **Unknown (no link) 0.0%**, **Owed, unpaid loans UGX 54.1M** (hover for the exact amount,
+  UGX 54,065,300). The caption adds 304 current, 15 in grace and 29 overdue but still paying.
+- **Status mix per lender:**
+
+  | Lender | On time | Late beyond grace |
+  |---|---|---|
+  | Mango Tree Daily Cash | 48% | 21% |
+  | Riverstone Credit | 48% | 23% |
+  | Bright Day Loans | 42% | 28% |
+
+  All three have 50 or more loans, so none is marked "too small to compare".
+- **Follow-up list:** **"124 borrowers in the follow-up list."** (97 not paying, 27 overdue but paying)
+  - The first rows are borrowers not paying at all three lenders, 179 days past due.
+  - Their risk band and open lenders come from the cross-lender score.
+  - **Point out:** codes only, no names; it is a work list, not a ranking of borrowers.
+- Press **Download the follow-up list (CSV)**. The first line of the file is the `#` notice with the words
+  "follow-up prompt, not a verdict or a credit score".
+- **Point out the "Known limits" at the bottom:**
+  - it needs loan links on repayments
+  - lenders differ on grace rules
+  - a status is not proof of wrongdoing
+  - the defaults come from one lender
+
 ### 7. Optional: lender D, the small lender
 
 Add `sample_pack\baseline\lender_D`. It has 39 messages. On the Lenders page it appears under
@@ -171,6 +200,28 @@ Each import of `all_lenders` took 2 to 15 seconds on this laptop. The cycling sc
   from another lender. A person must read the file.
 - **Cycling cannot be detected without `linked_loan_id`.** Without it, nobody can tell which loan a repayment
   paid. If only the true last repayment lacks the link, an earlier linked repayment is taken as the clearing one.
+
+## Repayments page per scenario (synthetic)
+
+The share of loans in each status, after importing `all_lenders`:
+
+| Scenario | Loans | On time | Late within grace | Late beyond grace | Not paying | Overdue but paying | In grace | Current | Unknown | Follow-up borrowers |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| baseline | 1,901 | 45.9% | 4.3% | 24.2% | 7.2% | 1.5% | 0.8% | 16.1% | 0.0% | 124 |
+| high_overlap | 2,437 | 42.4% | 5.8% | 27.7% | 5.9% | 1.5% | 0.7% | 16.0% | 0.0% | 100 |
+| cycling | 2,200 | 53.2% | 3.8% | 21.0% | 4.5% | 1.4% | 0.6% | 15.5% | 0.0% | 104 |
+| repayment_mix | 2,407 | 45.2% | 4.9% | 27.1% | 6.0% | 1.6% | 0.5% | 14.7% | 0.0% | 137 |
+| clean_control | 842 | 39.8% | 7.1% | 30.6% | 6.1% | 1.8% | 0.7% | 13.9% | 0.0% | 66 |
+
+**Against the answer key** (evaluation only; the page never reads it):
+
+- **Per borrower:** the page's worst status agrees with how each borrower was generated (on time / late but
+  cleared / not paid in full) for 100% of the borrowers it can decide, in all five scenarios. At most one
+  borrower per scenario is "too early" (its only late loan is still current).
+- **Per loan:** 99.3 to 99.8% agree. Every miss is a late loan read as on time, because its last repayment had
+  no `linked_loan_id`.
+- **Treat this as a consistency check, not accuracy.** The packs were built from the same rules as the page; a
+  non-payer, for example, always stops early and never pays again. Real data will disagree more.
 
 ## Sequential import check (baseline, lender by lender)
 

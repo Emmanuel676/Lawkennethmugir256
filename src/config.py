@@ -54,7 +54,7 @@ def validate_config(cfg: dict) -> None:
         "project", "paths", "generator", "regions", "loans",
         "lender_sizes", "lenders", "lender_behaviour", "messages", "profiles",
         "risk", "evaluation", "classifier", "lender_comparison", "dashboard", "onboarding", "privacy",
-        "app", "demo", "currency",
+        "app", "demo", "currency", "repayments",
     ):
         if section not in cfg:
             raise ConfigError(f"config.yaml is missing the '{section}' section.")
@@ -132,6 +132,7 @@ def validate_config(cfg: dict) -> None:
     _validate_currency(cfg["currency"])
     _validate_app(cfg["app"])
     _validate_demo(cfg["demo"])
+    _validate_repayments(cfg["repayments"])
     for key in ("predictions_db", "local_model", "datasets_dir", "active_dataset_file"):
         if key not in cfg["paths"]:
             raise ConfigError(f"paths is missing '{key}'.")
@@ -482,6 +483,26 @@ def _validate_demo(demo: dict) -> None:
         raise ConfigError("demo.many_lenders_max_dti must be a number above 0.")
     if not _whole(demo.get("harassed_min_abusive"), 1):
         raise ConfigError("demo.harassed_min_abusive must be a whole number of 1 or more.")
+
+
+def _validate_repayments(settings: dict) -> None:
+    """Checks for the 'repayments' section (Phase 10: the Repayments page)."""
+    if not isinstance(settings, dict):
+        raise ConfigError("The 'repayments' section must be a mapping.")
+    if not _whole(settings.get("grace_days"), 0):
+        raise ConfigError("repayments.grace_days must be a whole number of days, 0 or more (for example 3).")
+    if not _whole(settings.get("not_paying_after_days"), 1):
+        raise ConfigError("repayments.not_paying_after_days must be a whole number of days, 1 or more (for example 30).")
+    if not _whole(settings.get("min_loans_to_compare"), 1):
+        raise ConfigError("repayments.min_loans_to_compare must be a whole number, 1 or more (for example 50).")
+    edges = settings.get("ageing_bucket_edges")
+    if not (isinstance(edges, list) and edges and all(_whole(e, 1) for e in edges)
+            and all(a < b for a, b in zip(edges, edges[1:]))):
+        raise ConfigError("repayments.ageing_bucket_edges must be whole numbers of days that keep rising, "
+                          "for example [3, 30, 60, 90].")
+    if settings["grace_days"] > 0 and edges[0] != settings["grace_days"]:
+        raise ConfigError("repayments.ageing_bucket_edges must start at grace_days, so the first bucket is the grace "
+                          f"period (grace_days is {settings['grace_days']}, the first edge is {edges[0]}).")
 
 
 def _validate_currency(currency: dict) -> None:

@@ -253,7 +253,7 @@ def test_the_answer_key_is_outside_the_packs_and_cannot_be_imported(packs):
 DETECTION_CODE = (["app.py"] + sorted(f"pages/{p.name}" for p in (ROOT / "pages").glob("*.py"))
                   + [f"src/{name}.py" for name in ("overlap", "lender_comparison", "dashboard_data", "dashboard_ui",
                                                    "classify_local", "classify_messages", "import_data", "datasets",
-                                                   "predictions", "review", "bootstrap", "build_all")])
+                                                   "predictions", "review", "bootstrap", "build_all", "repayments")])
 
 
 @pytest.mark.parametrize("module", DETECTION_CODE)

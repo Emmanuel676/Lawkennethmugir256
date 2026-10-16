@@ -32,6 +32,17 @@
 | 3:55-4:35 | Step 6 (Lenders page) | "Redstone Loans ranks first: 45% of its 2,094 messages were labelled abusive, and even the low end of the 95% interval is 43%. We rank by that low end, so a lender only reaches the top on strong evidence. A rank means 'read these messages', not 'this lender broke the law'." |
 | 4:35-5:00 | **About** | "What we have not proven: these are synthetic messages, so real accuracy will be lower. Real data would need legal clearance, redaction (built in), and people checking a sample of labels on the Review page before anyone relies on them. Questions?" |
 
+## Optional: Repayments (45 seconds; after step 6, or when asked "who is not paying?")
+
+Numbers read on 2026-10-16 from the Repayments page on the synthetic demo. The 5-minute script above is
+unchanged; this adds 45 seconds.
+
+| Time | Click | Say |
+|------|-------|-----|
+| +0:00-0:15 | **Repayments** | "This page is a follow-up prompt, not a verdict or a credit score. Of 11,158 loans, 29% were repaid on time, 23% up to three days late, inside the grace period, and 12.5% are not being paid." |
+| +0:15-0:35 | Scroll to **Follow-up list** | "885 borrowers have a loan that is not being paid or is overdue. The list shows codes, never names, with the lenders involved, days past due, the amount owed and the cross-lender risk band, and it downloads as CSV with the synthetic notice on the first line." |
+| +0:35-0:45 | Point at **Known limits** | "It needs repayments linked to their loan, lenders differ on grace rules, and a status is not proof of wrongdoing. The demo repays each loan in one payment; the daily-repayment story is in the sample packs." |
+
 ## Three caveats to say out loud (always)
 
 1. **The data is synthetic.** It describes no real people, loans, lenders or messages. The lenders are fictional.

@@ -55,9 +55,9 @@ def _assert_banner(at: AppTest) -> None:
 
 # --- Code checks ---------------------------------------------------------------------------
 
-def test_there_are_seven_pages_besides_the_overview():
+def test_there_are_eight_pages_besides_the_overview():
     assert PAGES == ["app.py", "pages/0_Guided_Demo.py", "pages/1_Borrowers.py", "pages/2_Lenders.py", "pages/3_Export.py", "pages/4_About.py",
-                     "pages/5_Data.py", "pages/6_Review.py"]
+                     "pages/5_Data.py", "pages/6_Review.py", "pages/7_Repayments.py"]
 
 
 @pytest.mark.parametrize("module", DASHBOARD_CODE)

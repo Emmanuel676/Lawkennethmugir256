@@ -38,6 +38,49 @@ from src.make_sample_pack import ALL_LENDERS, ANSWER_DIR, build_scenario, output
 from src.overlap import connect_read_only, score_borrowers
 
 FLAGGED = ("medium", "high")
+# The Repayments page's worst status per borrower, mapped to the answer key's payer groups (Phase 10).
+PAGE_TO_GROUP = {"on_time": "on_time", "late_within_grace": "late_cleared", "late_beyond_grace": "late_cleared",
+                 "overdue_paying": "late_cleared", "not_paying": "not_paid", "current": "too_early",
+                 "in_grace": "too_early", "unknown": "unknown"}
+GROUPS = ("on_time", "late_cleared", "not_paid")
+
+
+def repayment_agreement(paths, cfg: dict, scores: pd.DataFrame, truth_b: pd.DataFrame) -> dict:
+    """The Repayments page's per-loan status mix, and how its per-borrower status matches the answer key's payer
+    groups (cyclers excluded: they always refinance). The page code never sees the answer key; only this does."""
+    from src import repayments as rp
+
+    conn = connect_read_only(paths.lending_db)
+    try:
+        lenders = pd.read_sql_query("SELECT lender_id, name FROM lenders", conn)
+    finally:
+        conn.close()
+    result = rp.load(cfg, scores, lenders, paths.lending_db)
+    merged = result["rollup"].merge(truth_b[["borrower_id", "payer_type", "cycler"]], on="borrower_id")
+    merged = merged[~merged["cycler"].astype(bool) & merged["payer_type"].isin(GROUPS)]
+    merged["page_group"] = merged["worst_status"].map(PAGE_TO_GROUP)
+    decided = merged[merged["page_group"].isin(GROUPS)]
+    confusion = pd.crosstab(merged["payer_type"], merged["page_group"]).reindex(
+        index=list(GROUPS), columns=list(GROUPS) + ["too_early", "unknown"], fill_value=0)
+    pairs = decided[decided["page_group"] != decided["payer_type"]]
+    top = pairs.groupby(["payer_type", "worst_status"]).size().sort_values(ascending=False).head(3)
+    # Loan level: each loan's page status against how that loan was generated (cycler loans left out).
+    loan_truth = pd.read_csv(Path(_cfg_holder["root"]) / ANSWER_DIR / _cfg_holder["scenario"]
+                             / f"{_cfg_holder['scenario']}_loan_truth.csv")
+    loans = result["statuses"].merge(loan_truth[["loan_id", "payer_kind"]], on="loan_id")
+    loans = loans[loans["payer_kind"].isin(GROUPS)]
+    loans["page_group"] = loans["repayment_status"].map(PAGE_TO_GROUP)
+    loan_decided = loans[loans["page_group"].isin(GROUPS)]
+    loan_wrong = loan_decided[loan_decided["page_group"] != loan_decided["payer_kind"]]
+    loan_top = loan_wrong.groupby(["payer_kind", "repayment_status"]).size().sort_values(ascending=False).head(3)
+    return {"loan_mix": result["headline"]["shares"], "loans": result["headline"]["loans"],
+            "follow_up": int((result["rollup"]["loans_overdue"] > 0).sum()),
+            "borrowers": len(merged), "decided": len(decided),
+            "agreement": float((decided["page_group"] == decided["payer_type"]).mean()) if len(decided) else 0.0,
+            "confusion": confusion, "disagreements": [(a, b, int(n)) for (a, b), n in top.items()],
+            "loan_decided": len(loan_decided),
+            "loan_agreement": float(1 - len(loan_wrong) / len(loan_decided)) if len(loan_decided) else 0.0,
+            "loan_disagreements": [(a, b, int(n)) for (a, b), n in loan_top.items()]}
 
 
 def temp_config(cfg: dict, work: Path) -> dict:
@@ -79,7 +122,7 @@ _cfg_holder: dict = {}
 def scenario_results(cfg: dict, root: Path, scenario: str, work: Path, model) -> dict:
     """Import all_lenders, label, score, then compare with the answer key."""
     tmp = temp_config(cfg, work / scenario)
-    _cfg_holder["cfg"] = tmp
+    _cfg_holder.update(cfg=tmp, root=str(root), scenario=scenario)
     result, seconds = import_folder(tmp, root / scenario / ALL_LENDERS, f"pack {scenario}")
     paths = get_dataset_paths(tmp, result.dataset)
     classify_dataset(tmp, paths, model, "saved local model", model_id(tmp))
@@ -129,6 +172,7 @@ def scenario_results(cfg: dict, root: Path, scenario: str, work: Path, model) ->
                          "interval": (float(small_row["abusive_low"]), float(small_row["abusive_high"]))},
         "ranked_lenders": table.dropna(subset=["rank"])[["name", "n_messages", "abusive_share", "late_night_share"]]
         .to_dict("records"),
+        "repayments": repayment_agreement(paths, tmp, scores, truth_b),
     }
 
 
@@ -212,6 +256,33 @@ def format_report(results: list[dict], sequence: list[dict], links: list[dict], 
         rank = "unranked" if pd.isna(s["rank"]) else f"rank {int(s['rank'])}"
         lines.append(f"  {r['scenario']}: {s['messages']} messages, {rank}, labelled abusive {s['abusive_share']:.0%} "
                      f"(95% interval {s['interval'][0]:.0%} to {s['interval'][1]:.0%})")
+    from src.repayments import LABELS, STATUSES
+
+    lines += ["", "Repayments page: share of loans per status",
+              "| Scenario | Loans | " + " | ".join(LABELS[s] for s in STATUSES) + " | Follow-up borrowers |",
+              "|---|---:|" + "---:|" * len(STATUSES) + "---:|"]
+    for r in results:
+        rep = r["repayments"]
+        lines.append(f"| {r['scenario']} | {rep['loans']:,} | " + " | ".join(f"{rep['loan_mix'][s]:.1%}" for s in STATUSES)
+                     + f" | {rep['follow_up']:,} |")
+    lines += ["", "Repayments page vs answer-key payer groups (per borrower, cyclers excluded; 'too early' = worst "
+              "loan current or in grace)",
+              "| Scenario | Borrowers | Decided by the page | Agreement | Main disagreements (answer key -> page status) |",
+              "|---|---:|---:|---:|---|"]
+    for r in results:
+        rep = r["repayments"]
+        top = "; ".join(f"{a} -> {LABELS[b]}: {n}" for a, b, n in rep["disagreements"]) or "none"
+        lines.append(f"| {r['scenario']} | {rep['borrowers']:,} | {rep['decided']:,} | {rep['agreement']:.0%} | {top} |")
+    lines += ["", "Loan level (each loan's page status vs how it was generated; current, in grace and unknown left out):"]
+    for r in results:
+        rep = r["repayments"]
+        top = "; ".join(f"{a} -> {LABELS[b]}: {n}" for a, b, n in rep["loan_disagreements"]) or "none"
+        lines.append(f"  {r['scenario']}: {rep['loan_agreement']:.1%} of {rep['loan_decided']:,} loans agree; "
+                     f"main disagreements: {top}")
+    lines += ["", "Confusion (rows = answer key, columns = page):"]
+    for r in results:
+        lines.append(f"  {r['scenario']}:")
+        lines += ["    " + line for line in r["repayments"]["confusion"].to_string().splitlines()]
     lines += ["", f"Sequential import ({scenario}): lender by lender",
               "| After | Borrowers | Codes already known | Borrowers at 2+ lenders | Expected from answer key | Import s |",
               "|---|---:|---:|---:|---:|---:|"]
