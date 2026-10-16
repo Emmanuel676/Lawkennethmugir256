@@ -125,7 +125,14 @@ def dataset_exists(cfg: dict, slug: str) -> bool:
 # --- Presentation mode -------------------------------------------------------------------------
 
 def presentation_mode(cfg: dict) -> bool:
-    """True when the app must show the demo only. FAIRLEND_PRESENT (1/0, true/false...) wins over the config."""
+    """True when the app must show the demo only. FAIRLEND_PRESENT (1/0, true/false...) wins over the config.
+
+    An unlocked team session (Phase 11) uses a config marked app.team_session whose data paths all point into its
+    own private folder: there, presentation mode is off so datasets can be imported and switched, but only that
+    session's private copy and its own imports can ever be listed or opened.
+    """
+    if cfg.get("app", {}).get("team_session"):
+        return False
     value = os.environ.get(PRESENT_VARIABLE, "").strip().lower()
     if value in _ON:
         return True

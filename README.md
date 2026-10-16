@@ -895,9 +895,9 @@ Fill in the "Deploy an app" form like this:
 | Branch | `main` |
 | Main file path | `app.py` |
 | Python version (Advanced settings) | `3.12` |
-| Secrets (Advanced settings) | exactly one line: `FAIRLEND_PRESENT = "1"` |
+| Secrets (Advanced settings) | `FAIRLEND_PRESENT = "1"`, and optionally `FAIRLEND_ACCESS_HASHES` (see Team access below) |
 
-- Put **nothing else** in Secrets: no Gemini key, no real data.
+- Put **nothing else** in Secrets: no Gemini key, no real data, never an access code (only its hash).
 - Before anyone else opens the link, use the app's **Share** settings to restrict who can view
   it, if your workspace offers that.
 - If the first start shows "The demo could not be prepared (error code FW-...)", reboot the app
@@ -907,6 +907,56 @@ Fill in the "Deploy an app" form like this:
   computer because `.\dev.ps1` (every switch that starts the dashboard, including `-Present`)
   and the commands in this README pass `--server.address localhost`. If you start Streamlit
   yourself, add that flag too: without it Streamlit listens on every network interface.
+
+## Team access on the live app (Phase 11)
+
+The live app runs in presentation mode, so the Data and Review pages are off for everyone. A small team can
+unlock them **for their own browser session only**, to show importing the synthetic sample packs on the live
+server. Everyone else sees exactly what they saw before.
+
+**How it works:**
+
+- **The box.** When at least one hash is configured, a **Team access** box appears in the sidebar of the Data
+  and Review pages (only there). It has a password field, **Unlock**, and after unlocking **Reset my demo
+  copy** and **Lock again**.
+- **Wrong codes.** A wrong code shows only "Code not recognised." After 5 wrong codes, that browser session
+  cannot try again for 10 minutes (`team_demo` in `config.yaml`). The limit is per session; opening a new
+  session starts a new count.
+- **A private copy.** An unlocked session works on a **private temporary copy** of the demo (its own folder).
+  Every page in that session shows the copy, so an import is visible everywhere. The shared demo files are
+  never written; a test checks their hashes.
+- **The banner.** "Team demo session. Synthetic data only. Your changes are private to this session and are
+  deleted when you leave."
+- **When the copy is deleted:**
+  - by Lock again or Reset my demo copy
+  - when Streamlit drops the session's state
+  - by a sweep, at the next page load in any session, once the session has ended or the copy is over 6 hours
+    old (Streamlit has no exact "session ended" event)
+- **Synthetic data only.** Every upload in an unlocked session is checked in memory first. It is refused, with
+  nothing stored, unless:
+  - every lender name ends with "(Demo)"
+  - every message ends with "(SYNTHETIC)"
+  - no lender name or message contains anything that looks like a phone number, an ID number or an email address
+  - it is within `team_demo.max_upload_mb` (25) and `max_rows_per_file` (100,000)
+- **Revoking.** Removing a hash from the secret locks any session using it at its next page load.
+- **No hash configured** (or only invalid entries): nobody can unlock; the app behaves exactly as before.
+  With presentation mode off (local runs), nothing changes at all.
+
+**Make a code** (one per person; prints once, saves nothing):
+
+```powershell
+.\tools\make_access_code.ps1
+```
+
+Give the **code** to the person. Put only the **hash** in the Streamlit secret, as a TOML list:
+
+```toml
+FAIRLEND_PRESENT = "1"
+FAIRLEND_ACCESS_HASHES = ["<hash of code 1>", "<hash of code 2>"]
+```
+
+To revoke a code, delete its hash and save the secret. Never put a code itself in the secret, in Git or in an
+email thread that is shared widely.
 
 ## License
 

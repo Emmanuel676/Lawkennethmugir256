@@ -139,6 +139,20 @@ abusive messages but too few to compare fairly. Data health now shows 150 of 500
 
 Delete the dataset on the **Datasets** tab (type its name). The demo is not affected.
 
+## On the live (public) app: team access
+
+The walkthrough above is for a local run (`.\dev.ps1`). On the public link the Data page is switched off,
+except for a team member with an access code (README, "Team access on the live app"):
+
+1. Open **Data** and type the code in the sidebar **Team access** box, then press **Unlock**. The banner
+   "Team demo session. Synthetic data only..." appears.
+2. Follow steps 1 to 7 above. Only the sample pack folders are accepted: lender names must end in "(Demo)",
+   messages in "(SYNTHETIC)", and no phone-, ID- or email-like text is allowed. Anything else is refused,
+   with nothing stored.
+3. Everything you import lives in a private copy for your browser session. Other visitors still see the
+   shared demo. **Lock again** (or **Reset my demo copy**) deletes your copy; it is also removed after you
+   leave.
+
 ## Expected results per scenario (synthetic)
 
 Each scenario's `all_lenders` folder was imported with the real importer (as-of 2026-10-01), its messages were

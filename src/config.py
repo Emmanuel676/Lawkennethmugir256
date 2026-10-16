@@ -54,7 +54,7 @@ def validate_config(cfg: dict) -> None:
         "project", "paths", "generator", "regions", "loans",
         "lender_sizes", "lenders", "lender_behaviour", "messages", "profiles",
         "risk", "evaluation", "classifier", "lender_comparison", "dashboard", "onboarding", "privacy",
-        "app", "demo", "currency", "repayments",
+        "app", "demo", "currency", "repayments", "team_demo",
     ):
         if section not in cfg:
             raise ConfigError(f"config.yaml is missing the '{section}' section.")
@@ -133,6 +133,7 @@ def validate_config(cfg: dict) -> None:
     _validate_app(cfg["app"])
     _validate_demo(cfg["demo"])
     _validate_repayments(cfg["repayments"])
+    _validate_team_demo(cfg["team_demo"])
     for key in ("predictions_db", "local_model", "datasets_dir", "active_dataset_file"):
         if key not in cfg["paths"]:
             raise ConfigError(f"paths is missing '{key}'.")
@@ -503,6 +504,19 @@ def _validate_repayments(settings: dict) -> None:
     if settings["grace_days"] > 0 and edges[0] != settings["grace_days"]:
         raise ConfigError("repayments.ageing_bucket_edges must start at grace_days, so the first bucket is the grace "
                           f"period (grace_days is {settings['grace_days']}, the first edge is {edges[0]}).")
+
+
+def _validate_team_demo(settings: dict) -> None:
+    """Checks for the 'team_demo' section (Phase 11: team access on the public deployment)."""
+    if not isinstance(settings, dict):
+        raise ConfigError("The 'team_demo' section must be a mapping.")
+    for key, minimum in (("max_attempts", 1), ("max_rows_per_file", 1)):
+        if not _whole(settings.get(key), minimum):
+            raise ConfigError(f"team_demo.{key} must be a whole number, {minimum} or more.")
+    for key in ("lockout_minutes", "max_upload_mb", "max_session_hours"):
+        value = settings.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+            raise ConfigError(f"team_demo.{key} must be a number above 0.")
 
 
 def _validate_currency(currency: dict) -> None:

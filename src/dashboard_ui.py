@@ -34,6 +34,8 @@ from src.app_log import log_exception
 from src.bootstrap import STEPS, demo_status, ensure_demo, signature
 from src.datasets import DEMO, PRESENT_VARIABLE, get_active_name, list_datasets, presentation_mode, set_active
 from src.overlap import DEFAULT_NOTICE
+from src.team_access import (BANNER as TEAM_BANNER, NOT_RECOGNISED, PrivateCopy, matching_hash, parse_hashes,
+                             record_attempt, sweep, throttled_for)
 
 CONFIG_VARIABLE = "LENDING_MONITOR_CONFIG"
 ASSETS_DIR = PROJECT_ROOT / "assets"
@@ -121,11 +123,12 @@ def brand_header(title: str, cfg: dict | None) -> None:
 
 
 @st.cache_resource(show_spinner="Loading the dataset...", max_entries=4)
-def _cached_load(path: str | None, signature: tuple) -> DashboardData:
-    # signature is part of the cache key only: it changes when a database file changes.
+def _cached_load(path: str | None, signature: tuple, _cfg: dict) -> DashboardData:
+    # signature is part of the cache key only: it changes when a database file changes, and it names the
+    # files, so a team session's private copy (Phase 11) is cached apart from the shared demo.
     # cache_resource keeps the object as it is. cache_data would pickle it on every store and
     # copy it on every read, which took about 4 seconds at 20,000 borrowers. Pages only read it.
-    return load_all(load_config(path))
+    return load_all(_cfg)
 
 
 REAL_LABEL_WARNING = ("Message labels come from a model trained on synthetic text. On real messages they are "
@@ -254,10 +257,11 @@ def page_setup(title: str, require_data: bool = True) -> tuple[DashboardData, di
         st.error(f"config.yaml has a problem: {error}")
         st.stop()
     brand_header(title, cfg)
-    dataset_switcher(cfg)
     if auto_build_wanted(cfg):
         prepare_demo(cfg)
-    data = _cached_load(config_path(), data_signature(cfg))
+    cfg = team_config(cfg)  # an unlocked team session gets its private copy; everyone else the shared demo
+    dataset_switcher(cfg)
+    data = _cached_load(config_path(), data_signature(cfg), cfg)
     banner(data)
     if not data.ok:
         st.error(data.message)
@@ -269,10 +273,135 @@ def page_setup(title: str, require_data: bool = True) -> tuple[DashboardData, di
 
 
 def presentation_block(cfg: dict) -> None:
-    """Stop a page (Data, Review) with a short message when presentation mode is on."""
+    """Stop a page (Data, Review) with a short message when presentation mode is on.
+
+    Phase 11: when access hashes are configured, the sidebar offers a "Team access" box. An unlocked session gets
+    its private copy (its cfg is marked app.team_session) and the page goes on, with the team banner. Without a
+    configured hash nothing changes: the message, and the page does nothing.
+    """
+    if cfg.get("app", {}).get("team_session"):
+        team_controls()
+        return
     if presentation_mode(cfg):
+        hashes = access_hashes()
+        if hashes:
+            team_access_box(cfg, hashes)
         st.info(PRESENTATION_BLOCKED)
         st.stop()
+
+
+# --- Team access (Phase 11) --------------------------------------------------------------------------------------------
+
+ACCESS_VARIABLE = "FAIRLEND_ACCESS_HASHES"
+TEAM_KEYS = ("team_unlocked", "team_hash", "team_copy", "team_token")
+
+
+def access_hashes() -> list[str]:
+    """The configured access-code hashes: the Streamlit secret first, else the environment variable. Never shown."""
+    value = None
+    try:
+        value = st.secrets.get(ACCESS_VARIABLE)
+    except Exception:  # no secrets file: fine, nothing is shown
+        value = None
+    if value is None:
+        value = os.environ.get(ACCESS_VARIABLE)
+    return parse_hashes(value)
+
+
+def _session_id() -> str:
+    try:
+        from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
+        ctx = get_script_run_ctx()
+        return str(ctx.session_id) if ctx else ""
+    except Exception:
+        return ""
+
+
+def _is_active_session(session_id: str) -> bool:
+    try:
+        from streamlit.runtime import Runtime
+        return Runtime.instance().is_active_session(session_id) if Runtime.exists() else True
+    except Exception:
+        return True  # when in doubt, keep the folder; the age limit still removes it
+
+
+def lock_team_session() -> None:
+    """Delete this session's private copy and forget the unlock."""
+    private = st.session_state.get("team_copy")
+    if isinstance(private, PrivateCopy):
+        private.delete()
+    for key in TEAM_KEYS:
+        st.session_state.pop(key, None)
+
+
+def team_config(cfg: dict) -> dict:
+    """cfg for this session: the private copy's config when unlocked (in presentation mode, with its hash still
+    configured), otherwise cfg unchanged. Also sweeps away private copies of sessions that have ended."""
+    settings = cfg["team_demo"]
+    try:
+        sweep(max_age_hours=float(settings["max_session_hours"]), is_active=_is_active_session)
+    except OSError:
+        pass
+    if not st.session_state.get("team_unlocked"):
+        return cfg
+    if not presentation_mode(cfg) or st.session_state.get("team_hash") not in access_hashes():
+        lock_team_session()  # presentation mode off, or the hash was removed (revoked): back to normal
+        return cfg
+    private = st.session_state.get("team_copy")
+    if not isinstance(private, PrivateCopy) or not private.alive:
+        private = PrivateCopy(cfg, _session_id())
+        st.session_state["team_copy"] = private
+    st.sidebar.markdown("**:green-badge[Team demo session]**")
+    st.sidebar.caption("Private copy of the demo, for this browser session only.")
+    return private.config
+
+
+def _try_unlock(settings: dict, hashes: list[str]) -> None:
+    """Button callback: check the typed code, then clear the box. The code is never stored, shown or logged."""
+    code = st.session_state.get("team_code_input", "")
+    st.session_state["team_code_input"] = ""
+    wait = throttled_for(st.session_state, settings)
+    if wait:
+        st.session_state["team_flash"] = (f"Too many attempts in this session. Try again in about "
+                                          f"{max(1, round(wait / 60))} minute(s).")
+        return
+    found = matching_hash(code, hashes)
+    record_attempt(st.session_state, found is not None, settings)
+    if found is None:
+        st.session_state["team_flash"] = NOT_RECOGNISED
+        return
+    st.session_state["team_unlocked"] = True
+    st.session_state["team_hash"] = found
+    st.session_state.pop("team_flash", None)
+
+
+def team_access_box(cfg: dict, hashes: list[str]) -> None:
+    """The sidebar box on the Data and Review pages (presentation mode, locked)."""
+    settings = cfg["team_demo"]
+    with st.sidebar:
+        st.subheader("Team access")
+        st.caption("For the project team: unlock the Data and Review pages for this browser session only, on a "
+                   "private copy of the synthetic demo.")
+        st.text_input("Access code", type="password", key="team_code_input")
+        st.button("Unlock", key="team_unlock", on_click=_try_unlock, args=(settings, hashes))
+        flash = st.session_state.pop("team_flash", None)
+        if flash:
+            st.error(flash)
+
+
+def _reset_copy() -> None:
+    private = st.session_state.pop("team_copy", None)
+    if isinstance(private, PrivateCopy):
+        private.delete()
+
+
+def team_controls() -> None:
+    """Banner and sidebar buttons for an unlocked team session (Data and Review pages)."""
+    st.warning(TEAM_BANNER)
+    with st.sidebar:
+        st.subheader("Team access")
+        st.button("Reset my demo copy", key="team_reset", on_click=_reset_copy)
+        st.button("Lock again", key="team_lock", on_click=lock_team_session)
 
 
 @contextmanager

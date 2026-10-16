@@ -312,6 +312,15 @@ repayments:
   ageing_bucket_edges: [3, 30, 60, 90]   # unpaid loans: 1-3 days (grace), 4-30, 31-60, 61-90, over 90 days past due
   min_loans_to_compare: 50       # lenders with fewer loans are shown but marked "too small to compare"
 
+# Phase 11: team access on the public deployment (src/team_access.py). Access codes are never stored: only their
+# SHA-256 hashes, in the Streamlit secret or environment variable FAIRLEND_ACCESS_HASHES. No hash = nobody unlocks.
+team_demo:
+  max_attempts: 5          # wrong codes in one session before that session must wait...
+  lockout_minutes: 10      # ...this long
+  max_upload_mb: 25        # an upload larger than this is refused in a team session
+  max_rows_per_file: 100000  # a table (sheet or CSV file) with more rows is refused in a team session
+  max_session_hours: 6     # a private copy older than this is deleted by the sweep, even if its session is still open
+
 # Featured cases for the Guided Demo page (Phase 5.2). Picked BY RULES FROM COMPUTED SIGNALS ONLY
 # (scores, bands, message labels), never from answer labels. Ties go to the lowest id.
 demo:

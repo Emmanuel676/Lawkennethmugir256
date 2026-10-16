@@ -17,6 +17,7 @@ from src.import_data import (PERMISSION_TEXT, TOKEN_WORDS, default_as_of, import
                              read_xlsx, redaction_preview, validate_upload)
 from src.redaction import TOKENS, build_redactor, possible_names
 from src.import_templates import build_csv_templates, build_xlsx_template
+from src.team_access import synthetic_gate
 
 with guarded("Data"):
     data, cfg = page_setup("Data", require_data=False)
@@ -135,6 +136,17 @@ with guarded("Data"):
             uploaded_many = st.file_uploader("CSV files (lenders.csv, borrowers.csv, loans.csv, transactions.csv, "
                                              "messages.csv; comma, semicolon or tab separated)", type=["csv", "txt"], accept_multiple_files=True, key="upload_csv")
             files = {f.name: f.getvalue() for f in uploaded_many or []}
+
+        if files and cfg["app"].get("team_session"):
+            # Team demo session on the public deployment (Phase 11): synthetic data only. Checked in memory;
+            # a refused upload is never validated, stored or written anywhere.
+            refused = synthetic_gate(files, file_type, cfg)
+            if refused:
+                st.error("This upload was refused. Team demo sessions accept only the synthetic sample packs "
+                         "(a lender_A ... lender_D or all_lenders folder). Nothing was stored.")
+                for reason in refused:
+                    st.markdown(f"- {reason}")
+                files = {}
 
         if not files:
             st.info("Upload your file(s) to continue.")

@@ -43,6 +43,27 @@ unchanged; this adds 45 seconds.
 | +0:15-0:35 | Scroll to **Follow-up list** | "885 borrowers have a loan that is not being paid or is overdue. The list shows codes, never names, with the lenders involved, days past due, the amount owed and the cross-lender risk band, and it downloads as CSV with the synthetic notice on the first line." |
 | +0:35-0:45 | Point at **Known limits** | "It needs repayments linked to their loan, lenders differ on grace rules, and a status is not proof of wrongdoing. The demo repays each loan in one payment; the daily-repayment story is in the sample packs." |
 
+## Optional: Live import demo on the public link (team members only, about 2 minutes)
+
+Only for a team member who has an access code (README, "Team access on the live app"). The 5-minute script
+above is unchanged.
+
+**Before you present:**
+
+1. Have the pack ready on your computer: `.\dev.ps1 -SamplePack` writes `sample_pack\`. Use
+   `sample_pack\baseline\lender_A` and `lender_B`, five CSV files each. Never upload `_answer_keys`.
+2. On the live app, open **Data**. In the sidebar **Team access** box, type your code and press **Unlock**.
+   - The yellow banner must read: "Team demo session. Synthetic data only. Your changes are private to this
+     session and are deleted when you leave."
+   - If it says "Code not recognised.", stop: after 5 wrong codes the box waits 10 minutes.
+
+| Time | Click | Say |
+|------|-------|-----|
+| +0:00-0:30 | **Data, Import**: Create a new dataset, name `SYNTHETIC sample baseline`, Five CSV files, upload `lender_A`, tick permission, **Validate**, **Import** | "This is a private copy for my session only. The public link still shows the shared demo to everyone else, and it accepts only synthetic sample packs: real data is refused before anything is stored." |
+| +0:30-1:10 | **Add to an existing real dataset**, upload `lender_B`, **Validate**, **Import**; switch to the dataset in the sidebar; **Data health** | "85 borrower codes were already known from lender A. 85 of 387 borrowers now appear at two lenders, an overlap neither lender could see alone." |
+| +1:10-1:40 | **Borrowers** or **Repayments** | "Every page now shows my private copy. A score or a status prompts a person to look; it is never a verdict." |
+| +1:40-2:00 | Sidebar: **Lock again** | "Locking deletes my copy. Visitors never saw it." |
+
 ## Three caveats to say out loud (always)
 
 1. **The data is synthetic.** It describes no real people, loans, lenders or messages. The lenders are fictional.

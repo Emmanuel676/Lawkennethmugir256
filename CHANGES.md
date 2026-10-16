@@ -1,3 +1,49 @@
+# Changes in Phase 11 (team access on the public deployment)
+
+- **What it does.** The live app (presentation mode) can now unlock the Data and Review pages for one browser
+  session at a time, for team members with an access code, to show importing the synthetic sample packs.
+  Everyone else sees exactly what they saw before.
+- **Codes.**
+  - Only SHA-256 hashes are configured: `FAIRLEND_ACCESS_HASHES`, read from the Streamlit secret, else the
+    environment variable. Missing, empty or invalid entries mean nobody unlocks, and the pages look as before.
+  - Codes are compared with `hmac.compare_digest`. A wrong code shows only "Code not recognised."
+  - After 5 wrong codes, that session waits 10 minutes.
+  - Removing a hash revokes any session using it at its next page load.
+  - `tools/make_access_code.ps1` makes a 16-character code with a cryptographic random generator and prints
+    the code and its hash once; it writes nothing to disk.
+- **The private copy.**
+  - An unlocked session gets a private temporary copy of the demo files, including the trained model: a
+    session config whose data paths all point into its own folder (`src/team_access.py`, `page_setup`).
+  - Every page in that session shows the copy; the shared demo files are never written (tested by hash, after
+    an import and after review labels).
+  - The copy is deleted by Lock again, Reset my demo copy, when Streamlit drops the session's state, and by a
+    sweep of ended or 6-hour-old sessions at the next page load.
+  - Banner: "Team demo session. Synthetic data only. Your changes are private to this session and are deleted
+    when you leave."
+- **Synthetic-only gate.** Every upload in an unlocked session is checked in memory first:
+  - "(Demo)" lender names and "(SYNTHETIC)" messages
+  - no phone-, ID- or email-like text in lender names or messages
+  - `team_demo.max_upload_mb` (25) and `max_rows_per_file` (100,000)
+
+  A refused upload is never validated or stored. All five sample packs pass.
+- **Unchanged:** detection rules, scores, thresholds, demo numbers and the demo data (fingerprint 3945277a);
+  local runs (presentation mode off); locked pages.
+- **Small internal change:** the shared data cache is now keyed by the session's config, not reloaded from
+  `config.yaml` by path. `presentation_mode()` is off for a config marked `app.team_session` (private paths only).
+- **Docs:** README ("Team access on the live app", deployment secrets), docs/DEMO_SCRIPT.md (an optional live
+  import segment), docs/ONBOARDING_DEMO.md (team access on the live app).
+- **Tests:** `tests/test_team_access.py` (34) covers:
+  - hashes, matching and the throttle
+  - config errors
+  - the gate (sample packs accepted; real-looking data refused without echoing it; limits)
+  - private copy paths, deletion and the sweep
+  - locked pages unchanged, with and without hashes
+  - wrong code, throttle, unlock of only one session, lock and reset, revocation
+  - an unlocked import writing only to the private copy and visible on the Overview, while another session and
+    a visitor do not see it
+  - review labels going only to the copy
+  - no printing or logging; the code tool; the demo fingerprint
+
 # Changes in Phase 10 (Repayments page, v1)
 
 - **New page `pages/7_Repayments.py` and module `src/repayments.py`** (read-only on lending.db, like overlap.py).
