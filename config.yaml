@@ -218,6 +218,10 @@ risk:
   # Without this, a borrower who repays one lender daily and re-borrows from it within match_days was counted
   # (27-38% of single-lender daily repayers in the Part 1 test). false = the old rule.
   cycling_require_different_lender: true
+  # Phase 9B (approved): the repayment near the new loan must also CLEAR the old loan (the loan is repaid and
+  # this is its last linked repayment). Without this, a daily instalment to lender A while a loan starts at
+  # lender B was counted (113 of 150 multi-lender borrowers in the baseline sample pack). false = the 9A rule.
+  cycling_require_clearing_repayment: true
 
 # Which ground-truth profiles count as "should be flagged" when measuring accuracy.
 # Used ONLY by src/evaluate_overlap.py. Decision made on the team's behalf (switchable).
@@ -425,8 +429,8 @@ sample_pack:
     borderline: {class_probs: {normal: 0.35, firm_pressure: 0.45, threat: 0.12, shaming_third_party: 0.08}, late_night_prob: 0.05}
     abusive:    {class_probs: {normal: 0.15, firm_pressure: 0.30, threat: 0.30, shaming_third_party: 0.25}, late_night_prob: 0.15}
   scenarios:
-    baseline:      {borrowers: 500, multi_lender_share: 0.30, cycler_share: 0.00, payer_scope: loan,     abusive: true}
-    high_overlap:  {borrowers: 400, multi_lender_share: 0.90, cycler_share: 0.00, payer_scope: loan,     abusive: true}
-    cycling:       {borrowers: 500, multi_lender_share: 0.30, cycler_share: 0.12, payer_scope: loan,     abusive: true}
+    baseline:      {borrowers: 500, multi_lender_share: 0.30, cycler_share: 0.00, payer_scope: borrower, abusive: true}
+    high_overlap:  {borrowers: 400, multi_lender_share: 0.90, cycler_share: 0.00, payer_scope: borrower, abusive: true}
+    cycling:       {borrowers: 500, multi_lender_share: 0.30, cycler_share: 0.12, payer_scope: borrower, abusive: true}
     repayment_mix: {borrowers: 600, multi_lender_share: 0.30, cycler_share: 0.00, payer_scope: borrower, abusive: true}
-    clean_control: {borrowers: 300, multi_lender_share: 0.00, cycler_share: 0.00, payer_scope: loan,     abusive: false}
+    clean_control: {borrowers: 300, multi_lender_share: 0.00, cycler_share: 0.00, payer_scope: borrower, abusive: false}

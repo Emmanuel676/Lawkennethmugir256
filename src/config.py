@@ -261,8 +261,9 @@ def _validate_risk(risk: dict) -> None:
 
     if risk["velocity_window_days"] < 1:
         raise ConfigError("risk.velocity_window_days must be 1 or more.")
-    if not isinstance(risk.get("cycling_require_different_lender", True), bool):
-        raise ConfigError("risk.cycling_require_different_lender must be true or false.")
+    for key in ("cycling_require_different_lender", "cycling_require_clearing_repayment"):
+        if not isinstance(risk.get(key, True), bool):
+            raise ConfigError(f"risk.{key} must be true or false.")
 
 
 def _validate_evaluation(evaluation: dict) -> None:

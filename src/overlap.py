@@ -24,7 +24,14 @@ Signals per borrower (unpaid = any loan whose status is not 'repaid'):
                    a DIFFERENT loan, i.e. borrowing to repay. With
                    risk.cycling_require_different_lender (default true) the repaid
                    loan must also be from a DIFFERENT LENDER, so a borrower who pays
-                   one lender daily and re-borrows from it is not counted (Phase 9A)
+                   one lender daily and re-borrows from it is not counted (Phase 9A).
+                   With risk.cycling_require_clearing_repayment (default true) the
+                   repayment must also CLEAR the old loan: the loan is repaid and this
+                   is its last linked repayment. A daily instalment on a loan that stays
+                   open is then not "borrowing to repay" (Phase 9B). lending.db stores no
+                   amount due, so "repaid + last linked repayment" is the only clearing
+                   test possible; a loan with repayments but no clearing information
+                   (not repaid, or no linked repayment) never clears
 
 Each signal becomes a strength from 0 to 1 (1 once it reaches its full_at value
 in config.yaml), times its weight. The weights add up to 100, so the score runs
@@ -93,9 +100,26 @@ def cycling_requires_different_lender(cfg: dict) -> bool:
     return bool(cfg["risk"].get("cycling_require_different_lender", True))
 
 
+def cycling_requires_clearing_repayment(cfg: dict) -> bool:
+    """risk.cycling_require_clearing_repayment; true when the setting is absent (Phase 9B default)."""
+    return bool(cfg["risk"].get("cycling_require_clearing_repayment", True))
+
+
+def mark_clearing_repayments(repayments: pd.DataFrame) -> pd.Series:
+    """True for a repayment that clears its loan: the linked loan is repaid and this is its last linked repayment.
+
+    Several repayments on the loan's last repayment day all count as that last repayment. A repayment on a loan
+    that is not repaid, or whose loan is unknown, never clears.
+    """
+    if repayments.empty:
+        return pd.Series(False, index=repayments.index)
+    last = repayments.groupby("linked_loan_id")["txn_date"].transform("max")
+    return (repayments["repaid_loan_status"] == "repaid") & (repayments["txn_date"] == last)
+
+
 def _cycling_events(
     loans: pd.DataFrame, repayments: pd.DataFrame, as_of: pd.Timestamp, match_days: int, lookback_days: int,
-    require_different_lender: bool = True,
+    require_different_lender: bool = True, require_clearing: bool = False,
 ) -> pd.Series:
     """Per borrower, how many recent loans were issued around the repayment of a different loan
     (and, with require_different_lender, of a loan from a different lender)."""
@@ -107,6 +131,8 @@ def _cycling_events(
     keep = (pairs["linked_loan_id"] != pairs["loan_id"]) & (gap <= match_days)
     if require_different_lender:
         keep &= pairs["repaid_lender_id"] != pairs["lender_id"]
+    if require_clearing:
+        keep &= pairs["clears_loan"]
     return pairs[keep].groupby("borrower_id")["loan_id"].nunique()
 
 
@@ -124,12 +150,14 @@ def score_borrowers(conn: sqlite3.Connection, cfg: dict) -> pd.DataFrame:
         "SELECT loan_id, borrower_id, lender_id, amount_outstanding, issue_date, status FROM loans", conn)
     loans["issue_date"] = pd.to_datetime(loans["issue_date"])
     repayments = pd.read_sql_query(
-        """SELECT t.borrower_id, t.txn_date, t.linked_loan_id, l.lender_id AS repaid_lender_id
+        """SELECT t.borrower_id, t.txn_date, t.linked_loan_id, l.lender_id AS repaid_lender_id,
+                  l.status AS repaid_loan_status
            FROM transactions t LEFT JOIN loans l ON l.loan_id = t.linked_loan_id
            WHERE t.direction = 'out' AND t.counterparty_type = 'lender' AND t.linked_loan_id IS NOT NULL""",
         conn,
     )
     repayments["txn_date"] = pd.to_datetime(repayments["txn_date"])
+    repayments["clears_loan"] = mark_clearing_repayments(repayments)
 
     unpaid = loans[loans["status"] != "repaid"]
     owed = unpaid.groupby("borrower_id").agg(
@@ -141,7 +169,7 @@ def score_borrowers(conn: sqlite3.Connection, cfg: dict) -> pd.DataFrame:
                  .groupby("borrower_id").size().rename("loans_in_window"))
     cycling = _cycling_events(
         loans, repayments, as_of, risk["cycling"]["match_days"], risk["cycling"]["lookback_days"],
-        cycling_requires_different_lender(cfg),
+        cycling_requires_different_lender(cfg), cycling_requires_clearing_repayment(cfg),
     ).rename("cycling_events")
 
     out = borrowers.set_index("borrower_id")
@@ -182,6 +210,14 @@ def score_borrowers(conn: sqlite3.Connection, cfg: dict) -> pd.DataFrame:
     return out[OUTPUT_COLUMNS].reset_index(drop=True)
 
 
+def _cycling_wording(cfg: dict) -> str:
+    """What a cycling event is, in words, for the rules switched on in config.yaml."""
+    other = cycling_requires_different_lender(cfg)
+    if cycling_requires_clearing_repayment(cfg):
+        return "clearing a loan from another lender" if other else "clearing a different loan"
+    return "repaying a different loan from another lender" if other else "repaying a different loan"
+
+
 def explain(row, cfg: dict) -> list[str]:
     """Plain-language reasons for a borrower's score, biggest contributor first.
 
@@ -200,8 +236,7 @@ def explain(row, cfg: dict) -> list[str]:
                            f"{float(row['debt_to_income']):.1f} times monthly income"),
         "arrears": f"{float(row['arrears_share']):.0%} of what is owed is in arrears",
         "cycling": (f"{plural(int(row['cycling_events']), 'new loan')} taken within "
-                    f"{risk['cycling']['match_days']} days of repaying a different loan"
-                    f"{' from another lender' if cycling_requires_different_lender(cfg) else ''} (borrowing to repay)"),
+                    f"{risk['cycling']['match_days']} days of {_cycling_wording(cfg)} (borrowing to repay)"),
         "loan_velocity": (f"Took {plural(int(row['loans_in_window']), 'loan')} in the last "
                           f"{risk['velocity_window_days']} days"),
     }

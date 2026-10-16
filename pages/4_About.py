@@ -70,7 +70,8 @@ with guarded("About"):
     st.subheader("Known weak spots")
     st.markdown("""
     - **Look-alike borrowers sit near the medium threshold.** Borrowers with high income and several small loans have a
-      median score just under the medium cut-off, so about half of them land in medium. Small changes would swing this.
+      median score just under the medium cut-off, so about four in ten of them land in medium. Small changes would
+      swing this.
     - **Cycling borrowers are flagged mainly through the forcing rule.** Their score alone is usually low; the rule
       that lifts repeated cycling to medium does most of the work.
     - **The classifier was tested on only 16 held-out phrasings.** The 400 test messages come from 16 wordings, so the

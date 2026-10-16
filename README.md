@@ -203,7 +203,7 @@ the score runs from 0 to 100.
 | Open lenders | Distinct lenders among unpaid loans (1 lender = 0 points) | 5 lenders | 25 |
 | Debt to income | Total owed on unpaid loans / monthly income | 2.0 x income | 30 |
 | Arrears | Share of what is owed that sits in loans in arrears | 100% | 20 |
-| Cycling | Recent loans (last 180 days) issued within 2 days of repaying a different loan from another lender | 3 events | 15 |
+| Cycling | Recent loans (last 180 days) issued within 2 days of clearing a loan from another lender | 3 events | 15 |
 | Loan velocity | Loans of any status issued in the last 60 days | 4 loans | 10 |
 
 Bands: **low** below 35, **medium** from 35, **high** from 60. Every number
@@ -211,12 +211,24 @@ is in the `risk` section of `config.yaml`. Each borrower gets a breakdown
 (`explain`) listing the signals by points, biggest first, for example:
 
 ```
-B02555  score 89.0  band high
-  - Owes UGX 748,400, which is 2.1 times monthly income (30.0 of 30 points).
-  - Has unpaid loans with 6 different lenders at the same time (25.0 of 25 points).
-  - 4 new loans taken within 2 days of repaying a different loan from another lender (borrowing to repay) (15.0 of 15 points).
-  ...
+B01767  score 89.4  band high
+  - Owes UGX 920,200, which is 3.1 times monthly income (30.0 of 30 points).
+  - Has unpaid loans with 5 different lenders at the same time (25.0 of 25 points).
+  - 72% of what is owed is in arrears (14.4 of 20 points).
+  - 2 new loans taken within 2 days of clearing a loan from another lender (borrowing to repay) (10.0 of 15 points).
+  - Took 6 loans in the last 60 days (10.0 of 10 points).
 ```
+
+**What counts as clearing a loan** (Phase 9B, `risk.cycling_require_clearing_repayment`): the repayment
+near the new loan must be the old loan's last linked repayment, and the old loan's status must be `repaid`.
+`lending.db` stores no amount due, so "the repayments reached what was owed" cannot be checked directly. A
+daily instalment on a loan that stays open does not count, and neither does a repayment on a loan from the same
+lender (`risk.cycling_require_different_lender`). Both settings default to true; `false` restores the earlier rules.
+
+**Known limits of the cycling signal.** A borrower who really clears one lender from their own money within
+2 days of taking a loan at another lender looks exactly like borrowing to repay in these columns: the data
+cannot tell the two apart. And cycling cannot be detected at all without `linked_loan_id` on repayments; if
+a loan's true last repayment carries no link, an earlier linked repayment is taken as the clearing one.
 
 The scores are written to `data/borrower_scores.csv`. Its first line is a `#`
 line carrying the synthetic-data notice. Read the file with
@@ -230,25 +242,25 @@ The thresholds were set before evaluation and have not been tuned on these numbe
 | Profile | Should be flagged? | n | High | Medium | Low | Median score |
 |---------|--------------------|--:|-----:|-------:|----:|-------------:|
 | typical | no | 3,500 | 0% | 0% | 100% | 0.0 |
-| stacked | yes | 500 | 48% | 43% | 9% | 59.2 |
+| stacked | yes | 500 | 46% | 45% | 9% | 58.8 |
 | cycling | yes | 250 | 0% | 97% | 3% | 27.6 |
-| harassed | yes | 400 | 13% | 62% | 25% | 42.8 |
-| look-alike | no | 350 | 0% | 47% | 53% | 34.3 |
+| harassed | yes | 400 | 12% | 62% | 25% | 42.7 |
+| look-alike | no | 350 | 0% | 39% | 61% | 33.7 |
 
-Precision 85.3%, recall 87.0% (1,001 found, 173 false alarms, 149 missed).
+Precision 87.4%, recall 86.9% (999 found, 144 false alarms, 151 missed).
 
 **Weak spots, stated plainly:**
 
 - **These numbers are optimistic.** The data is synthetic and the profiles were
   generated to be separable. Real borrowers will be messier.
-- **Look-alikes sit on a knife edge.** Their median score (34.3) is just under
-  the medium threshold of 35, so about half of them land in medium. 165 of the
-  173 false alarms are look-alikes (the other 8 are typical borrowers, 0.2% of
+- **Look-alikes sit on a knife edge.** Their median score (33.7) is just under
+  the medium threshold of 35, so about four in ten of them land in medium. 136 of the
+  144 false alarms are look-alikes (the other 8 are typical borrowers, 0.2% of
   them). A small change to their income or the
   threshold would swing this share a lot. None of them reach high, which is
   the property that matters most.
 - **Cycling borrowers are found almost only because of the forcing rule.** Their
-  median score is 27.6. Without the rule, 91% of them would be low. The cycling
+  median score is 27.6. Without the rule, 94% of them would be low. The cycling
   signal itself is sharp (it picks out cycling borrowers and almost nobody
   else), but its weight alone does not lift them over 35.
 - **A quarter of harassed borrowers are missed.** That is expected: their
@@ -262,7 +274,7 @@ Precision 85.3%, recall 87.0% (1,001 found, 173 false alarms, 149 missed).
    Borrowing to repay is a warning sign even when today's debt looks small.
    Such borrowers are marked `band_forced_by_cycling`, and their breakdown says so.
    Set it to `false` to rely on the score alone. Only 6% of cycling borrowers
-   are then flagged, and overall recall falls from 87% to 67% (precision 82%).
+   are then flagged, and overall recall falls from 87% to 67% (precision 84%).
 2. **Positive profiles are stacked, cycling and harassed**
    (`evaluation.positive_profiles`). Typical and look-alike borrowers should not
    be flagged.
@@ -392,9 +404,9 @@ download the money columns carry the currency in their name (`monthly_income_ugx
 (`monthly_income`, `principal`, `amount_outstanding`, `amount`), and say on the
 Instructions sheet and on each money header that the amounts are UGX.
 
-**Seen on screen with the default dataset:** 293 high, 881 medium and 3,826 low
-borrowers; 22.8% of messages labelled abusive; 395 borrowers both flagged and
-harassed. Note that **108 borrowers in the low band received 3 or more abusive
+**Seen on screen with the default dataset:** 280 high, 863 medium and 3,857 low
+borrowers; 22.8% of messages labelled abusive; 394 borrowers both flagged and
+harassed. Note that **109 borrowers in the low band received 3 or more abusive
 messages**. Their debt looks manageable but their messages do not. They are not
 in the "flagged and harassed" number, so find them on the Borrowers page with
 band = low and a minimum of 3 abusive messages.
@@ -787,7 +799,7 @@ Remove-Item Env:GEMINI_API_KEY            # forget the key when done
   `tests\test_theme_and_tiles.py`.
 - **Charts read on both themes:** the bars and the orange confidence-interval line keep at
   least 3:1 contrast on white and on the dark background, and labels follow the theme.
-- **Money tiles never get cut off:** large amounts use a short form (`UGX 259.8M`), and the
+- **Money tiles never get cut off:** large amounts use a short form (`UGX 251.9M`), and the
   exact amount is in the tile's help (the `?` next to it). Tables and downloads keep exact
   amounts.
 

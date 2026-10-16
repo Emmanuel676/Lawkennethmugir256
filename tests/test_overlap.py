@@ -202,7 +202,7 @@ def test_cycling_chain_stays_low_when_the_forcing_rule_is_off(tmp_path, cfg):
 def test_explain_puts_biggest_contributor_first_and_mentions_forced_medium(tmp_path, cfg):
     forced = _cycling_chain(TinyWorld()).score(tmp_path, cfg).loc["B1"]
     lines = explain(forced, cfg)
-    assert "repaying a different loan" in lines[0]  # cycling is worth the most points here
+    assert "clearing a loan from another lender" in lines[0]  # cycling is worth the most points here
     assert "medium" in lines[-1] and "cycling" in lines[-1]
     assert not any("arrears" in line for line in lines)  # 0-point signals are skipped
 
@@ -219,11 +219,15 @@ def test_explain_puts_biggest_contributor_first_and_mentions_forced_medium(tmp_p
 
 def test_score_never_exceeds_100_even_for_extreme_debt(tmp_path, cfg):
     world = TinyWorld().borrower("B1", 100_000)
-    for number, days_ago in enumerate((50, 40, 30, 20, 10, 5), start=1):
-        world.loan(f"X{number}", "B1", number, 50_000_000, days_ago, "in_arrears")
-        if number > 1:
-            world.repay("B1", f"X{number - 1}", days_ago)
+    # Genuine cycling (Phase 9B): each chain loan is cleared on the day a loan from the NEXT lender arrives.
+    for number, days_ago in enumerate((50, 40, 30, 20), start=1):
+        world.loan(f"C{number}", "B1", number, 0, days_ago, "repaid")
+        world.repay("B1", f"C{number}", days_ago - 10)  # its last (clearing) repayment; C2, C3, C4 start that day
+    # Five more lenders, all in arrears: full lender, debt, arrears and velocity points.
+    for number in range(5, 10):
+        world.loan(f"X{number}", "B1", number, 50_000_000, 5, "in_arrears")
     row = world.score(tmp_path, cfg).loc["B1"]
+    assert row["cycling_events"] >= 3
     assert row["debt_to_income"] > 1000
     assert row["score"] == pytest.approx(100.0)
     assert row["band"] == "high"

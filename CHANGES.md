@@ -1,3 +1,42 @@
+# Changes in Phase 9B (second cycling correction, payer split per borrower)
+
+- **Cycling rule (approved):** an event now also needs the repayment near the new loan to CLEAR the old loan: the
+  old loan is repaid and this is its last linked repayment (`risk.cycling_require_clearing_repayment: true`;
+  `false` gives the 9A rule). lending.db stores no amount due, so "repayments reached what was owed" can only
+  be checked this way. A loan that is not repaid, or has no linked repayment, never clears. The
+  different-lender requirement stays. The on-screen explanation now says "clearing a loan from another lender".
+- **Why:** under 9A, a borrower repaying lender A daily while a loan started at lender B was counted (113 of the
+  150 multi-lender borrowers in the baseline pack; 19 lifted to medium). Now 53 have an event and 6 are lifted.
+  In 84 to 94% of the remaining cases the borrower really cleared one lender within 2 days of a loan at
+  another; the rest come from a true last repayment without `linked_loan_id`. Both are documented as known
+  limits in the README and docs/ONBOARDING_DEMO.md.
+- **Demo numbers changed (accepted):**
+  - bands 293/881/3,826 became 280/863/3,857
+  - owed by the high band: UGX 259,829,300 became 251,909,300
+  - flagged and harassed: 395 became 394; low band with 3+ abusive messages: 108 became 109
+  - precision/recall: 85.3%/87.0% became 87.4%/86.9%; false alarms 173 became 144 (look-alikes 165 became 136)
+  - cycling events: 1,342 on 599 borrowers became 1,072 on 408
+  - Every lost event was a part payment on a loan that stays open (stacked and look-alike borrowers). The
+    cycling profile is unchanged (243 with 3+ events), and so are the six Guided Demo cases. B00550 scores 38.5
+    (was 48.5) and stays medium.
+  - The demo data is unchanged (fingerprint 3945277a).
+- **Single-lender daily repayers:** still 0% at every re-borrow gap and link share. The 150 genuine cyclers are
+  unchanged (100% caught with links on all or 50% of repayments; 0% with none).
+- **Sample packs:** `payer_scope: borrower` in all five scenarios, so the 40/42/18 split applies per borrower
+  (now 41/39/19 in baseline and 37/46/17 in clean_control). The expected-results table in
+  docs/ONBOARDING_DEMO.md was rebuilt.
+- **Text:** README results, weak spots, example breakdown (now B01767), the clearing definition and the known
+  limits; docs/DEMO_SCRIPT.md numbers (re-read on 2026-10-16); the About page ("about four in ten" look-alikes
+  in medium) and its cycling description.
+- **Tests:**
+  - New in `tests/test_phase9a_rules.py`:
+    - multi-lender daily repayers get no events
+    - cyclers who clear loan A on the day loan B arrives are counted
+    - a loan that is not repaid, or has no linked repayment, never clears
+    - only the last linked repayment of a repaid loan clears it
+    - the setting restores the 9A rule
+  - `test_score_never_exceeds_100_even_for_extreme_debt` now uses genuine cycling; its assertion is unchanged.
+
 # Changes in Phase 9A (sample lender packs and rule checks)
 
 - **Part 1 checks** (measured on throwaway data, nothing kept). With daily repayments, the old cycling rule counted a borrower who repays one lender and re-borrows from it within 2 days: 20 to 38% of 600 single-lender borrowers got a cycling event (stop rule: 5%). A 21:00 late-night cut-off flagged 17 to 19% of messages from a lender whose staff work until midnight.

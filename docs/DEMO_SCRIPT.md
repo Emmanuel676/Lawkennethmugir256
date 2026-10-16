@@ -1,7 +1,7 @@
 # FairLend Watch: 5-minute demo script
 
 > **Every number below comes from the SYNTHETIC demo dataset** (seed 42, 5,000 made-up
-> borrowers, 13 fictional lenders ending in "(Demo)"). The figures were read on 2026-10-14
+> borrowers, 13 fictional lenders ending in "(Demo)"). The figures were re-read on 2026-10-16 (after the Phase 9B cycling rule)
 > from `python -m src.evaluate_overlap`, `python -m src.evaluate_classifier`,
 > `python -m src.evaluate_lenders` (all with `--dataset demo`), the Overview page and
 > `config.yaml`. If the demo is rebuilt with other settings, re-read them before presenting.
@@ -23,10 +23,10 @@
 
 | Time | Click | Say |
 |------|-------|-----|
-| 0:00-0:40 | **Overview** | "FairLend Watch gives a regulator a view **across** lenders that no single lender has. Three things up front: **this data is synthetic**; **the accuracy numbers are optimistic** because the data was built to be separable; and **a person decides**. The tool only points at files worth reading. Of 5,000 made-up borrowers, 293 are in the high band and 881 in medium. 23% of the 26,780 collection messages were labelled abusive." |
+| 0:00-0:40 | **Overview** | "FairLend Watch gives a regulator a view **across** lenders that no single lender has. Three things up front: **this data is synthetic**; **the accuracy numbers are optimistic** because the data was built to be separable; and **a person decides**. The tool only points at files worth reading. Of 5,000 made-up borrowers, 280 are in the high band and 863 in medium. 23% of the 26,780 collection messages were labelled abusive." |
 | 0:40-1:25 | Guided Demo, step 1: **Open on the Borrowers page** | "Borrower B01767 scores 89 of 100. They have 5 open lenders and owe 3.1 times their monthly income. Each lender sees one loan; only the combined view shows the stack. Here is the breakdown: every point is explained, and the weights are in the config." |
 | 1:25-2:05 | Step 2 | "B00030 scores only 28, but took 5 new loans within days of repaying others: borrowing to repay. A rule lifts repeated cycling to medium so a person looks. The page says the rule did it, not the score." |
-| 2:05-2:40 | Step 3 | "B00550 has 5 open lenders but owes only 0.23 times monthly income, and stays in medium. The score is not just a lender count. Debt, arrears and cycling matter more." |
+| 2:05-2:40 | Step 3 | "B00550 has 5 open lenders but owes only 0.23 times monthly income: it scores 38.5 and stays in medium. The score is not just a lender count. Debt, arrears and cycling matter more." |
 | 2:40-3:20 | Step 4 | "B02339 received 48 messages labelled abusive, 20 of them late at night and 14 sent to other people. Scroll down: you can read every message. The labels are a model's guesses; late night and third party are facts of the message." |
 | 3:20-3:55 | Step 5 (Lenders page) | "Kestrel Instant Cash sent only 6 messages. That is too few to rank: its interval runs from 0% to 39%. A lender needs 50 messages before it is ranked, so a small lender can't top or escape the list by luck." |
 | 3:55-4:35 | Step 6 (Lenders page) | "Redstone Loans ranks first: 45% of its 2,094 messages were labelled abusive, and even the low end of the 95% interval is 43%. We rank by that low end, so a lender only reaches the top on strong evidence. A rank means 'read these messages', not 'this lender broke the law'." |
@@ -47,7 +47,7 @@
    The tool doesn't contact anyone and doesn't decide anything about a borrower. In a real deployment, flagged borrowers would go to people trained to help, under the regulator's own rules. The tool only shortens the search.
 
 3. **How do you know the weights are right?**
-   We don't. The weights (open lenders 25, debt-to-income 30, arrears 20, cycling 15, loan velocity 10) were set by judgement before looking at results, and were not tuned on the answers. On synthetic data the score gets 85.3% precision and 87.0% recall, but the data was built to be separable. Real use would need validation with case workers.
+   We don't. The weights (open lenders 25, debt-to-income 30, arrears 20, cycling 15, loan velocity 10) were set by judgement before looking at results, and were not tuned on the answers. On synthetic data the score gets 87.4% precision and 86.9% recall, but the data was built to be separable. Real use would need validation with case workers.
 
 4. **What if lenders use different borrower IDs?**
    Then the cross-lender view disappears, because the same person looks like several people. Every lender must make codes from the same phone or ID number with the **same secret salt** (`src.make_borrower_codes`). The Data health tab shows how many borrowers appear at two or more lenders. If that is near zero, the codes don't match.
@@ -71,7 +71,7 @@
     Lender names are masked before training and prediction, so the model judges what a message says, not who sent it.
 
 11. **What happens with a borrower who has lots of loans but is fine?**
-    That is the "many lenders, little debt" case in the demo (B00550: 5 lenders, 0.23 times income). Many such borrowers stay below high. On synthetic data, about half of the high-income look-alike borrowers still land in medium, and we say that openly on the About page.
+    That is the "many lenders, little debt" case in the demo (B00550: 5 lenders, 0.23 times income). Many such borrowers stay below high. On synthetic data, about four in ten of the high-income look-alike borrowers still land in medium, and we say that openly on the About page.
 
 12. **Who checks the checker?**
     Every number on screen traces back to a rule in `config.yaml` or a labelled sample. On real data, a person labels a random sample on the Review page, and the dashboard shows what share of labels a person has checked. The test suite (over 400 automatic checks) fails if the dashboard ever reads the answer labels.
