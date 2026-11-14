@@ -10,7 +10,7 @@ import {
 } from "@/components/ui";
 import type { Overview, TopBorrower } from "@/lib/api";
 import { date, int, pct, score } from "@/lib/format";
-import { useApi } from "@/lib/useApi";
+import { useDatasetApi } from "@/components/SessionProvider";
 
 const TOP_COLUMNS: Column<TopBorrower>[] = [
   { key: "borrower_id", header: "Borrower", sortValue: (r) => r.borrower_id,
@@ -26,7 +26,7 @@ const TOP_COLUMNS: Column<TopBorrower>[] = [
 ];
 
 export default function OverviewPage() {
-  const { data, error, loading, reload } = useApi<Overview>("/api/overview");
+  const { data, error, loading, reload } = useDatasetApi<Overview>("/api/overview");
   const router = useRouter();
 
   return (
@@ -34,7 +34,8 @@ export default function OverviewPage() {
       <PageHeader
         title="Overview"
         intro={data
-          ? <>Who may be over-borrowing across lenders, and which lenders send messages labelled abusive. Synthetic demo dataset, data as of {date(data.dataset.as_of_date)}.</>
+          ? <>Who may be over-borrowing across lenders, and which lenders send messages labelled abusive.{" "}
+            {data.dataset.kind === "demo" ? "Synthetic demo dataset" : `${data.dataset.name} (imported, passed the synthetic-only check)`}, data as of {date(data.dataset.as_of_date)}.</>
           : "Who may be over-borrowing across lenders, and which lenders send messages labelled abusive."}
       />
 

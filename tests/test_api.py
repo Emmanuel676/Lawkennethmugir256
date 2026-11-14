@@ -219,17 +219,27 @@ def test_follow_up_filters(client):
 
 # --- Read-only, CORS, start-up -------------------------------------------------------------------------------
 
+# Phase 12B added sign-in, user management, dataset delete and import. Those are the ONLY routes that change
+# anything; every data route stays GET-only, and nothing can write to the demo (tests/test_api_auth.py).
+WRITE_ROUTES = {("POST", "/api/auth/login"), ("POST", "/api/auth/logout"), ("POST", "/api/users"),
+                ("PATCH", "/api/users/{user_id}"), ("POST", "/api/users/{user_id}/password"),
+                ("DELETE", "/api/datasets/{slug}"), ("POST", "/api/imports/check"), ("POST", "/api/imports")}
+
+
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
-def test_no_endpoint_can_write(client, method):
-    for path in ("/api/overview", "/api/borrowers", "/api/repayments/follow-up.csv", "/api/import", "/api/data"):
+def test_no_data_endpoint_can_write(client, method):
+    for path in ("/api/overview", "/api/borrowers", "/api/repayments/follow-up.csv"):
         assert getattr(client, method)(path).status_code == 405
+    for path in ("/api/import", "/api/data"):
+        assert getattr(client, method)(path).status_code in (404, 405)
 
 
-def test_every_route_is_get_only(client):
+def test_only_the_listed_routes_change_anything(client):
     for route in client.app.routes:
         methods = getattr(route, "methods", None)
         if methods and route.path.startswith("/api"):
-            assert methods <= {"GET", "HEAD"}, route.path
+            for method in methods - {"GET", "HEAD"}:
+                assert (method, route.path) in WRITE_ROUTES, (method, route.path)
 
 
 def test_cors_allows_only_the_configured_origin(client):

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { MetaProvider } from "@/components/MetaProvider";
+import { SessionProvider } from "@/components/SessionProvider";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
@@ -27,9 +28,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="font-sans">
-        <MetaProvider>
-          <AppShell>{children}</AppShell>
-        </MetaProvider>
+        <SessionProvider>
+          <MetaProvider>
+            <AppShell>{children}</AppShell>
+          </MetaProvider>
+        </SessionProvider>
       </body>
     </html>
   );

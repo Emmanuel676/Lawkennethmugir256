@@ -10,7 +10,7 @@ import {
 } from "@/components/ui";
 import { apiUrl, type FollowUp, type FollowUpRow, type Repayments } from "@/lib/api";
 import { int, pct } from "@/lib/format";
-import { useApi } from "@/lib/useApi";
+import { DEMO, useDatasetApi, useSession } from "@/components/SessionProvider";
 
 type MixRow = Repayments["lender_mix"][number];
 
@@ -51,8 +51,10 @@ function FollowUpList({ total }: { total: number }) {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
 
+  const { dataset } = useSession();
   const params = { lenders: lenders.join("|"), statuses: statuses.join(","), bands: bands.join(","), sort, order };
-  const { data, error, loading, reload } = useApi<FollowUp>("/api/repayments/follow-up", { ...params, page });
+  const csvParams = { ...params, dataset: dataset === DEMO ? undefined : dataset };
+  const { data, error, loading, reload } = useDatasetApi<FollowUp>("/api/repayments/follow-up", { ...params, page });
 
   function reset<T>(setter: (v: T) => void) {
     return (value: T) => { setter(value); setPage(1); };
@@ -64,7 +66,7 @@ function FollowUpList({ total }: { total: number }) {
             context from the risk score. A list for a person to work through: not a ranking of borrowers, not a verdict and not a
             credit score.</>}
           actions={
-            <a href={apiUrl("/api/repayments/follow-up.csv", params)} download="repayment_follow_up.csv"
+            <a href={apiUrl("/api/repayments/follow-up.csv", csvParams)} download="repayment_follow_up.csv"
                className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink hover:opacity-90">
               <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16" /></svg>
               Download CSV
@@ -103,7 +105,7 @@ function FollowUpList({ total }: { total: number }) {
               <Pagination page={data.page} pages={data.pages} onPage={setPage} label="Follow-up list pages" />
             </div>
           )}
-          <p className="mt-3 text-xs text-muted">The CSV starts with one &apos;#&apos; line carrying the synthetic-data notice and the
+          <p className="mt-3 text-xs text-muted">The CSV starts with one &apos;#&apos; line carrying the dataset notice and the
             words &apos;follow-up prompt, not a verdict or a credit score&apos;. Read it with pandas.read_csv(path, comment=&quot;#&quot;).</p>
         </>
       )}
@@ -112,7 +114,7 @@ function FollowUpList({ total }: { total: number }) {
 }
 
 export default function RepaymentsPage() {
-  const { data, error, loading, reload } = useApi<Repayments>("/api/repayments");
+  const { data, error, loading, reload } = useDatasetApi<Repayments>("/api/repayments");
   const share = (key: string) => data?.statuses.find((s) => s.key === key);
 
   return (

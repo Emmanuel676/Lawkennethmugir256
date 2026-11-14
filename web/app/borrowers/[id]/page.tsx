@@ -10,7 +10,7 @@ import {
 } from "@/components/ui";
 import type { BorrowerDetail } from "@/lib/api";
 import { date, dateTime, int, pct, ratio, score, titleCase } from "@/lib/format";
-import { useApi } from "@/lib/useApi";
+import { useDatasetApi } from "@/components/SessionProvider";
 
 type Loan = BorrowerDetail["loans"][number];
 type Message = BorrowerDetail["messages"][number];
@@ -52,7 +52,7 @@ export default function BorrowerPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = decodeURIComponent(params.id);
-  const { data, error, loading, reload } = useApi<BorrowerDetail>(`/api/borrowers/${encodeURIComponent(id)}`);
+  const { data, error, loading, reload } = useDatasetApi<BorrowerDetail>(`/api/borrowers/${encodeURIComponent(id)}`);
 
   const back = (
     <button type="button" onClick={() => (window.history.length > 1 ? router.back() : router.push("/borrowers"))}

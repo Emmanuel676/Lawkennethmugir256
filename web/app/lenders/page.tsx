@@ -7,7 +7,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pill, Skeleton, Term } from "@/components/ui";
 import type { LenderDetail, LenderRow, Lenders } from "@/lib/api";
 import { dateTime, int, pct, titleCase } from "@/lib/format";
-import { useApi } from "@/lib/useApi";
+import { useDatasetApi } from "@/components/SessionProvider";
 
 function columns(level: string): Column<LenderRow>[] {
   return [
@@ -32,7 +32,7 @@ function columns(level: string): Column<LenderRow>[] {
 }
 
 function LenderPanel({ id }: { id: string }) {
-  const { data, error, loading, reload } = useApi<LenderDetail>(`/api/lenders/${encodeURIComponent(id)}`);
+  const { data, error, loading, reload } = useDatasetApi<LenderDetail>(`/api/lenders/${encodeURIComponent(id)}`);
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (loading || !data) return <LoadingBlock rows={5} label="Loading lender" />;
   return (
@@ -60,7 +60,7 @@ function LenderPanel({ id }: { id: string }) {
 }
 
 export default function LendersPage() {
-  const { data, error, loading, reload } = useApi<Lenders>("/api/lenders");
+  const { data, error, loading, reload } = useDatasetApi<Lenders>("/api/lenders");
   const [picked, setPicked] = useState<string>("");
   const level = data ? `${Math.round(data.confidence * 100)}%` : "95%";
   const all = data ? [...data.ranked, ...data.unranked] : [];

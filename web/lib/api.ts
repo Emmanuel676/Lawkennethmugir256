@@ -1,15 +1,16 @@
-// Typed client for the read-only FairLend Watch API (../api). Every number on screen comes from here.
-// The API address is a setting: NEXT_PUBLIC_API_URL (default http://127.0.0.1:8000).
+// Typed client for the FairLend Watch API (../api). Every number on screen comes from here.
+// By default the browser calls /api/* on this web app's own origin and Next.js forwards it to the API
+// (next.config.ts), so the session cookie stays first-party. NEXT_PUBLIC_API_URL overrides it (read-only demo use).
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 export type BandKey = "high" | "medium" | "low";
 export interface Band { key: BandKey; label: string }
 export interface Money { amount: number | null; exact: string; compact: string }
 
 export interface DatasetInfo {
-  name: string; slug: string; kind: string; synthetic: boolean; as_of_date: string; notice: string;
-  classifier: string; currency: string;
+  name: string; slug: string; kind: "demo" | "imported"; label: string; synthetic: boolean; as_of_date: string;
+  notice: string; trust_line: string; classifier: string; currency: string;
 }
 
 export interface Meta {
@@ -133,24 +134,91 @@ export function apiUrl(path: string, params?: Params): string {
   return `${API_BASE}${path}${text ? `?${text}` : ""}`;
 }
 
-export async function getJson<T>(path: string, params?: Params, signal?: AbortSignal): Promise<T> {
-  let response: Response;
+async function send(path: string, init: RequestInit, params?: Params): Promise<Response> {
   try {
-    response = await fetch(apiUrl(path, params), { signal, headers: { Accept: "application/json" } });
+    return await fetch(apiUrl(path, params), { credentials: "same-origin", ...init });
   } catch (error) {
     if ((error as Error).name === "AbortError") throw error;
-    throw new ApiError(
-      `The data service is not reachable at ${API_BASE}. Is the API running? (see docs/UI_V2.md)`, 0);
+    throw new ApiError("The data service is not reachable. Is the API running? (see docs/UI_V2.md)", 0);
   }
-  if (!response.ok) {
-    let detail = `The data service answered ${response.status}.`;
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      /* keep the generic message */
-    }
-    throw new ApiError(detail, response.status);
+}
+
+async function readError(response: Response): Promise<ApiError> {
+  let detail = `The data service answered ${response.status}.`;
+  if (response.status === 401) detail = "Sign in to see this.";
+  if (response.status === 403) detail = "Your role does not allow this. Ask an Admin if you need it.";
+  try {
+    const body = await response.json();
+    if (typeof body?.detail === "string") detail = body.detail;
+  } catch {
+    /* keep the generic message */
   }
+  return new ApiError(detail, response.status);
+}
+
+/** POST/PATCH/DELETE with a JSON body. The browser adds the Origin header the API checks. */
+export async function sendJson<T>(method: "POST" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
+  const response = await send(path, {
+    method, headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) throw await readError(response);
   return (await response.json()) as T;
 }
+
+/** POST a multipart form (file uploads). */
+export async function sendForm<T>(path: string, form: FormData): Promise<T> {
+  const response = await send(path, { method: "POST", headers: { Accept: "application/json" }, body: form });
+  if (!response.ok) throw await readError(response);
+  return (await response.json()) as T;
+}
+
+export async function getJson<T>(path: string, params?: Params, signal?: AbortSignal): Promise<T> {
+  const response = await send(path, { signal, headers: { Accept: "application/json" } }, params);
+  if (!response.ok) throw await readError(response);
+  return (await response.json()) as T;
+}
+
+// --- Phase 12B: sign-in, datasets, import, users, audit ---------------------------------------------------------
+
+export type Role = "viewer" | "importer" | "admin";
+export const ROLE_RANK: Record<Role, number> = { viewer: 0, importer: 1, admin: 2 };
+export const ROLE_LABEL: Record<Role, string> = { viewer: "Viewer", importer: "Importer", admin: "Admin" };
+
+export interface User {
+  id: number; email: string; role: Role; disabled: boolean; created_at: number; created_by: string; locked: boolean;
+}
+export interface Me { user: User | null; roles: Role[] }
+
+export interface DatasetEntry {
+  slug: string; name: string; kind: "demo" | "imported"; label: string; notes: string; source: string;
+  added_by: string; added_at: number | null; updated_at: number | null; as_of_date: string;
+  counts: Record<string, number>; imports: number; deletable: boolean;
+}
+export interface DatasetList { datasets: DatasetEntry[]; can_import: boolean; can_delete: boolean }
+export interface DatasetDetail extends DatasetEntry {
+  health: { borrowers: number; shared_borrowers: number; min_messages: number;
+            per_lender: Record<string, string | number>[] };
+}
+
+export interface Issue { location: string; message: string; text: string }
+export interface ImportOutcome {
+  stage: "refused" | "invalid" | "valid" | "imported" | "failed";
+  reasons: string[]; message: string; dataset: string; already_known: number; suggested_as_of: string;
+  report: null | {
+    ok: boolean; counts: Record<string, number>; as_of_date: string; errors_total: number; warnings_total: number;
+    errors: Issue[]; warnings: Issue[]; notes: Issue[]; found: Record<string, number>; already_known: number;
+  };
+  record?: DatasetEntry | null;
+}
+export interface ImportInfo {
+  permission_text: string; limits: { max_upload_mb: number; max_rows_per_file: number };
+  day_first_default: boolean; targets: { slug: string; name: string }[]; label: string;
+}
+
+export interface UserList { users: User[]; roles: Role[]; password_min_length: number }
+export interface AuditEntry {
+  id: number; at: number; actor: string; action: string; action_label: string; target: string;
+  detail: Record<string, unknown>;
+}
+export interface AuditPage { total: number; page: number; page_size: number; pages: number; entries: AuditEntry[] }

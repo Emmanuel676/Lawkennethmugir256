@@ -10,7 +10,7 @@ import {
 } from "@/components/ui";
 import type { BandKey, BorrowerList, BorrowerRow } from "@/lib/api";
 import { int, ratio, score } from "@/lib/format";
-import { useApi } from "@/lib/useApi";
+import { useDatasetApi } from "@/components/SessionProvider";
 
 const BAND_OPTIONS: { key: BandKey; label: string }[] = [
   { key: "high", label: "High" }, { key: "medium", label: "Medium" }, { key: "low", label: "Low" },
@@ -75,7 +75,7 @@ function BorrowersInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qDraft]);
 
-  const { data, error, loading, reload } = useApi<BorrowerList>("/api/borrowers", {
+  const { data, error, loading, reload } = useDatasetApi<BorrowerList>("/api/borrowers", {
     bands: bands.join(","), regions: regions.join(","), min_score: minScore || undefined,
     min_open_lenders: minLenders || undefined, min_abusive: minAbusive || undefined, q: q || undefined,
     sort, order, page,

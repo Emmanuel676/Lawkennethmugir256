@@ -65,9 +65,12 @@ def _band(band: str) -> dict:
 
 
 def dataset_info(snap: Snapshot) -> dict:
+    """Which dataset this is. 'synthetic' is True for the built-in demo only: an imported dataset passed the
+    synthetic-only check, which does not prove it is synthetic, so it is labelled as imported instead."""
     data = snap.data
-    return {"name": data.dataset_name, "slug": data.dataset, "kind": data.kind, "synthetic": bool(data.synthetic),
-            "as_of_date": data.as_of_date, "notice": data.notice, "classifier": data.classifier,
+    return {"name": snap.name, "slug": snap.slug, "kind": snap.kind, "label": snap.label,
+            "synthetic": snap.kind == "demo" and bool(data.synthetic), "as_of_date": data.as_of_date,
+            "notice": snap.notice, "trust_line": snap.trust_line, "classifier": data.classifier,
             "currency": currency_code(snap.cfg)}
 
 
@@ -81,9 +84,9 @@ def meta(snap: Snapshot) -> dict:
     return {
         "product": {"name": cfg["project"]["name"], "tagline": cfg["project"]["tagline"]},
         "dataset": dataset_info(snap),
-        "trust_line": TRUST_LINE,
+        "trust_line": snap.trust_line,
         "review_line": REVIEW_LINE,
-        "presentation_mode": True,
+        "presentation_mode": snap.kind == "demo",
         "read_only": True,
         "bands": [{**_band(b), "min_score": float(cfg["risk"]["bands"].get(b, 0))} for b in BANDS],
         "message_classes": [{"key": k, "label": CLASS_LABELS[k], "description": CLASS_DESCRIPTIONS[k],
@@ -102,7 +105,7 @@ def overview(snap: Snapshot) -> dict:
     bands = band_distribution(data)
     return {
         "dataset": dataset_info(snap),
-        "trust_line": TRUST_LINE,
+        "trust_line": snap.trust_line,
         "kpis": {
             "borrowers_scored": k["borrowers_scored"],
             "band_counts": k["band_counts"],
@@ -252,7 +255,7 @@ def repayments(snap: Snapshot) -> dict:
     worst = result["rollup"]["worst_status"].value_counts()
     return {
         "dataset": dataset_info(snap),
-        "trust_line": TRUST_LINE,
+        "trust_line": snap.trust_line,
         "owed_note": OWED_NOTE,
         "prompt": rp.PROMPT,
         "lump": bool(result["lump"]),
@@ -323,4 +326,4 @@ def follow_up_csv(snap: Snapshot, lenders: str | None = None, statuses: str | No
                   sort: str = "days_past_due", order: str = "desc") -> bytes:
     """The same CSV the Streamlit download gives: first line '#' with the dataset notice and the prompt wording."""
     rows = _follow_up_rows(snap, lenders, statuses, bands, sort, order)
-    return rp.follow_up_csv(rows, snap.data.notice)
+    return rp.follow_up_csv(rows, snap.notice)
