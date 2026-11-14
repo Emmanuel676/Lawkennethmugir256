@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* Dark theme is chosen by a class on <html> (set by the theme toggle), never automatically mid-session. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Brand (from assets/fairlend-watch-logo.svg) and semantic tokens. Components use the semantic names. */
+:root {
+  --navy: #0f172a;
+  --teal: #0f766e;
+  --slate: #475569;
+  --amber: #d97706;
+  --tint-slate: #f1f5f9;
+  --tint-teal: #e6f2f1;
+  --tint-amber: #fef3e2;
+  --line: #cbd5e1;
+
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #475569;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --accent-soft: #e6f2f1;
+  --focus: #0f766e;
+
+  /* Chart marks: validated with the dataviz palette checker (light surface). */
+  --band-high: #be123c;
+  --band-medium: #d97706;
+  --band-low: #0d9488;
+  --series: #0d9488;
+  --interval: #0f172a;
+  --grid: #e2e8f0;
+}
+
+.dark {
+  --bg: #0b1120;
+  --surface: #111a2e;
+  --surface-2: #1e293b;
+  --ink: #f1f5f9;
+  --ink-2: #cbd5e1;
+  --muted: #94a3b8;
+  --line: #334155;
+  --accent: #2dd4bf;
+  --accent-ink: #0f172a;
+  --accent-soft: #123b3a;
+  --focus: #5eead4;
+
+  /* Validated against the dark chart surface #1E293B. */
+  --band-high: #e11d48;
+  --band-medium: #d97706;
+  --band-low: #0d9488;
+  --series: #14b8a6;
+  --interval: #f1f5f9;
+  --grid: #334155;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --color-navy: var(--navy);
+  --color-teal: var(--teal);
+  --color-amber: var(--amber);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-tint-amber: var(--tint-amber);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Never a horizontal page scroll on a phone: wide tables scroll inside their own box. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--line) 50%, var(--surface-2) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+/* Recharts: keep its focus ring and tooltip in our tokens. */
+.recharts-surface:focus { outline: none; }
+.recharts-default-tooltip {
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  color: var(--ink) !important;
+}

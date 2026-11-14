@@ -1,0 +1,7 @@
+# Phase 12A: the read-only JSON API (api/) behind the new web interface (web/).
+# The app's own requirements plus FastAPI, the uvicorn server and httpx (FastAPI's TestClient uses it).
+# Install with: .\.venv\Scripts\python.exe -m pip install -r requirements-api.txt
+-r requirements.txt
+fastapi==0.121.3
+uvicorn==0.38.0
+httpx==0.28.1
