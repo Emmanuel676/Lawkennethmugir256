@@ -11,7 +11,7 @@ import { THEME_SCRIPT } from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: { default: "FairLend Watch", template: "%s · FairLend Watch" },
-  description: "Lending conduct monitor. Synthetic data. A flag is a prompt for a human to look, not a verdict.",
+  description: "Lending conduct monitor. Demonstration data. A flag is a prompt for a human to look, not a verdict.",
   robots: { index: false, follow: false },
 };
 

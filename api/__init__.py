@@ -2,5 +2,5 @@
 
 It imports the existing engine in src/ and only lays its results out as JSON: no detection logic lives
 here, so every number matches the Streamlit app. Presentation mode, demo data only, GET only.
-All data is synthetic. A flag is a prompt for a human to look, not a verdict.
+Demonstration data. A flag is a prompt for a human to look, not a verdict.
 """

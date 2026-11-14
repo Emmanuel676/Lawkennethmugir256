@@ -115,6 +115,7 @@ def review_label(body: LabelRequest, request: Request, user: User = Importer):
     svc.audit.record(user.email, "review_label", record.name if record else body.dataset,
                      {"message_id": body.message_id, "label": body.label, "batch": body.kind,
                       "model_agreed": result["agreed"]})
+    svc.files.save(svc.sources.base_config(), body.dataset)  # Postgres: re-upload the dataset's labels file
     svc.sources.forget(body.dataset)  # the pages reload with the person's label in place of the model's
     return result
 

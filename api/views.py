@@ -20,9 +20,10 @@ from src.dashboard_data import (BANDS, REVIEW_LINE, SIGNAL_DESCRIPTIONS, SORT_OP
                                 sort_borrowers, top_borrowers, unranked_lenders)
 from src.money import currency_code, format_money, format_money_compact
 
+from api import wording
 from api.data_source import Snapshot
 
-TRUST_LINE = "Synthetic data. A flag is a prompt for a human to look, not a verdict."
+TRUST_LINE = wording.TRUST_LINE
 OWED_NOTE = "The total owed includes loans that are not yet due."
 BAND_LABELS = {"high": "High", "medium": "Medium", "low": "Low"}
 CLASS_LABELS = {"normal": "Normal", "firm_pressure": "Firm pressure", "threat": "Threat",
@@ -78,11 +79,10 @@ def _band(band: str) -> dict:
 
 
 def dataset_info(snap: Snapshot) -> dict:
-    """Which dataset this is. 'synthetic' is True for the built-in demo only: an imported dataset passed the
-    synthetic-only check, which does not prove it is synthetic, so it is labelled as imported instead."""
+    """Which dataset this is. Every dataset is labelled "Demonstration data" (api.wording)."""
     data = snap.data
     return {"name": snap.name, "slug": snap.slug, "kind": snap.kind, "label": snap.label,
-            "synthetic": snap.kind == "demo" and bool(data.synthetic), "as_of_date": data.as_of_date,
+            "demonstration": True, "as_of_date": data.as_of_date,
             "notice": snap.notice, "trust_line": snap.trust_line, "classifier": data.classifier,
             "currency": currency_code(snap.cfg)}
 
@@ -249,7 +249,9 @@ def lender(snap: Snapshot, lender_id: str) -> dict:
     data, cfg = snap.data, snap.cfg
     detail = lender_detail(data, lender_id, cfg)  # KeyError for an unknown id
     return {
-        **_lender_row(detail["row"]),
+        # detail["row"] is a pandas Series: attribute access would return Series methods (rank) and the index
+        # label (name), so read it as a one-row table's tuple, like lenders() does.
+        **_lender_row(next(pd.DataFrame([detail["row"]]).itertuples(index=False))),
         "sentence": detail["sentence"],
         "examples": [{"class": {"key": name, "label": CLASS_LABELS.get(name, name)},
                       "messages": [{"message_id": m.message_id, "sent_at": m.sent_at,
@@ -387,7 +389,7 @@ def guided_demo(snap: Snapshot) -> dict:
             item["say"], item["counts"] = _harassment_sentence(snap, case["id"])
         cases.append(item)
     return {"available": True, "cases": cases, "missing": featured["missing"], "reason": "",
-            "opening": ["The data is synthetic.",
+            "opening": ["This is demonstration data.",
                         "The accuracy figures are optimistic, because the data was built to be separable.",
                         "A person decides: the tool only points at files worth reading."]}
 

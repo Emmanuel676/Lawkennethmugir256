@@ -105,7 +105,7 @@ function DatasetsInner() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-base font-semibold text-ink">{d.name}</h2>
-                      {d.kind === "demo" ? <Pill tone="teal">Built-in synthetic demo</Pill> : <Pill tone="amber">Imported</Pill>}
+                      {d.kind === "demo" ? <Pill tone="teal">Demonstration data · built in</Pill> : <Pill tone="amber">Demonstration data · imported</Pill>}
                       {active && <Pill>Showing now</Pill>}
                     </div>
                     <p className="mt-1 text-sm text-muted">{d.kind === "demo" ? d.notes : d.label}</p>
@@ -141,7 +141,7 @@ function DatasetsInner() {
           })}
           {imported.length === 0 && (
             <EmptyState title="No imported datasets yet.">
-              {data.can_import ? <>Use <Link href="/import" className="font-medium text-accent hover:underline">Import data</Link> to add one, for example the synthetic sample pack.</>
+              {data.can_import ? <>Use <Link href="/import" className="font-medium text-accent hover:underline">Import data</Link> to add one, for example a sample pack.</>
                 : "An Importer or Admin can add one."}
             </EmptyState>
           )}

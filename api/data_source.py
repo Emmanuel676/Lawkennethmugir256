@@ -2,7 +2,7 @@
 
 Every endpoint asks for a read-only Snapshot and never opens a database itself. Two kinds of source:
 
-  DemoDataSource      the built-in synthetic demo, loaded once at start-up through the existing engine
+  DemoDataSource      the built-in demonstration dataset, loaded once at start-up through the existing engine
                       (src.dashboard_data.load_all and src.repayments.load), exactly as the Streamlit pages load it.
                       Readable without signing in. Nothing in the API can change or delete it.
   ImportedDataSource  one shared dataset imported through the Data import page (Phase 12B). Its files live in
@@ -10,8 +10,8 @@ Every endpoint asks for a read-only Snapshot and never opens a database itself. 
                       and right after each import.
 
 DataSources holds the demo and a cache of imported snapshots, keyed by slug, and forgets a snapshot when its
-dataset changes or is deleted. Imported datasets are labelled IMPORTED_LABEL: they passed the synthetic-only
-check, which does NOT prove they are synthetic, so they are never called synthetic and never shown as REAL DATA.
+dataset changes or is deleted. Every dataset, built in or imported, is labelled "Demonstration data" (api.wording);
+the engine's own notice lines are replaced by that neutral wording before they reach the web app.
 """
 
 from __future__ import annotations
@@ -30,10 +30,12 @@ from src.dashboard_data import DashboardData, load_all
 from src.datasets import DEMO, get_active_name, presentation_mode
 from src.redaction import Redactor, build_redactor
 
-DEMO_TRUST_LINE = "Synthetic data. A flag is a prompt for a human to look, not a verdict."
-IMPORTED_LABEL = "Imported dataset. Passed the synthetic-only check."
-IMPORTED_TRUST_LINE = f"{IMPORTED_LABEL} A flag is a prompt for a human to look, not a verdict."
-IMPORTED_NOTICE = f"{IMPORTED_LABEL} The check does not prove the data is synthetic."
+from api import wording  # noqa: E402
+
+DEMO_TRUST_LINE = wording.TRUST_LINE
+IMPORTED_LABEL = wording.IMPORTED_LABEL
+IMPORTED_TRUST_LINE = wording.TRUST_LINE
+IMPORTED_NOTICE = wording.NOTICE
 
 
 class DataNotReady(RuntimeError):
@@ -55,9 +57,9 @@ class Snapshot:
     loaded_at: float
     load_seconds: float
     slug: str = DEMO
-    name: str = "Synthetic demo dataset"
+    name: str = wording.DEMO_NAME
     kind: str = "demo"               # 'demo' or 'imported'
-    label: str = "Synthetic demo dataset"
+    label: str = wording.DEMO_LABEL
     notice: str = ""                 # first line of CSV exports
     trust_line: str = DEMO_TRUST_LINE
 
@@ -99,7 +101,7 @@ def _load_snapshot(cfg: dict, started: float, **identity) -> Snapshot:
 
 
 class DemoDataSource:
-    """The synthetic demo, read-only. load() is called once, by the start-up script, never by a visitor."""
+    """The built-in demonstration dataset, read-only. load() is called once, at start-up, never by a visitor."""
 
     name = "demo"
 
@@ -115,19 +117,20 @@ class DemoDataSource:
             cfg = presentation_config(self._config_path)
             if not presentation_mode(cfg) or get_active_name(cfg) != DEMO:
                 # FAIRLEND_PRESENT=0 would let a stored real dataset become active; the API never serves one as demo.
-                self._error = "The API serves the synthetic demo only. Unset FAIRLEND_PRESENT and start it again."
+                self._error = ("The API serves only the built-in demonstration dataset as its demo. Unset "
+                               "FAIRLEND_PRESENT and start it again.")
                 raise DataNotReady(self._error)
             data = load_all(cfg)
             if not data.ok:
                 self._error = f"The demo data is not ready ({data.status}). Run: python -m api.prepare"
                 raise DataNotReady(self._error)
             if data.real:
-                self._error = "The active dataset is not synthetic, so the API will not serve it."
+                self._error = "The active dataset is not the built-in demonstration dataset, so the API will not serve it."
                 raise DataNotReady(self._error)
             result = rp.load(cfg, data.borrowers, repayment_lenders(data))
             self._snapshot = Snapshot(cfg=cfg, data=data, repayments=result, redactor=build_redactor(cfg),
                                       loaded_at=time.time(), load_seconds=round(time.time() - started, 2),
-                                      notice=data.notice)
+                                      notice=wording.NOTICE)
             self._error = ""
 
     def snapshot(self) -> Snapshot:

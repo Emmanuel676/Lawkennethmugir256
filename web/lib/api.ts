@@ -9,7 +9,7 @@ export interface Band { key: BandKey; label: string }
 export interface Money { amount: number | null; exact: string; compact: string }
 
 export interface DatasetInfo {
-  name: string; slug: string; kind: "demo" | "imported"; label: string; synthetic: boolean; as_of_date: string;
+  name: string; slug: string; kind: "demo" | "imported"; label: string; demonstration: boolean; as_of_date: string;
   notice: string; trust_line: string; classifier: string; currency: string;
 }
 

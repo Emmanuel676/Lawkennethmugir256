@@ -5,7 +5,8 @@
 
 It asks for the email (unless given) and then for the password TWICE AT A HIDDEN PROMPT (getpass). The password is
 never accepted as a command argument, never read from a file or an environment variable, and never printed,
-logged or written anywhere: only its argon2 hash is stored, in <FAIRLEND_WEB_DATA>/app.db.
+logged or written anywhere: only its argon2 hash is stored, in <FAIRLEND_WEB_DATA>/app.db, or in the hosted
+Postgres database when DATABASE_URL is set in this window (see docs/DEPLOY_FREE.md).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import getpass
 import sys
 
 from api.accounts import AccountError, AccountStore
-from api.appdb import AppDatabase
+from api.appdb import DatabaseUnavailable, open_database
 from api.security import load_secret
 from api.settings import load_settings
 
@@ -26,7 +27,7 @@ def main(argv: list[str] | None = None, prompt=getpass.getpass, ask=input) -> in
     args = parser.parse_args(argv)
 
     settings = load_settings()
-    store = AccountStore(AppDatabase(settings.data_dir / "app.db"),
+    store = AccountStore(open_database(settings),
                          lambda: load_secret(settings.session_secret, settings.data_dir),
                          session_hours=settings.session_hours, max_attempts=settings.max_login_attempts,
                          lockout_minutes=settings.lockout_minutes,
@@ -41,6 +42,9 @@ def main(argv: list[str] | None = None, prompt=getpass.getpass, ask=input) -> in
             continue
         try:
             user = store.create_user(email, "admin", first, created_by="create_admin script")
+        except DatabaseUnavailable as error:
+            print(str(error))
+            return 1
         except AccountError as error:
             print(str(error))
             if "already exists" in str(error) or "email" in str(error).lower():
@@ -49,7 +53,8 @@ def main(argv: list[str] | None = None, prompt=getpass.getpass, ask=input) -> in
         finally:
             first = second = ""  # noqa: F841 - drop the references as soon as possible
         print(f"Admin account created for {user.email}. Sign in at the web app's Sign in page.")
-        print(f"Users and sessions are stored in {settings.data_dir} (git-ignored).")
+        print("Stored in the hosted database (DATABASE_URL)." if settings.database_url
+              else f"Users and sessions are stored in {settings.data_dir} (git-ignored).")
         return 0
     print("No account was created.")
     return 1

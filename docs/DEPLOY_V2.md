@@ -4,14 +4,14 @@ This document describes how the web interface (`web/`) and its API (`api/`) **co
 here has been deployed. Read it before anyone outside this computer can reach the app. The Streamlit app stays the
 fallback and is not covered here.
 
-Synthetic data. A flag is a prompt for a human to look, not a verdict.
+Demonstration data. A flag is a prompt for a human to look, not a verdict.
 
 ## 1. What is safe to show publicly, and what is not
 
 | Safe to show publicly | Not safe to show publicly |
 |---|---|
-| The built-in **synthetic demo**: Overview, Borrowers, Lenders, Repayments, Guided demo, Export (demo files), About. It describes no real people, loans, lenders or messages. | **Imported datasets.** They passed the synthetic-only check, which does not prove they are synthetic. Keep them behind sign-in, as the API already does. |
-| The demo's CSV exports (each starts with the synthetic notice line). | **`data\web\app.db`** (users, password hashes, session hashes, dataset metadata, audit log). |
+| The built-in **demonstration dataset**: Overview, Borrowers, Lenders, Repayments, Guided demo, Export (demo files), About. Its people, loans, lenders and messages are made up. | **Imported datasets.** They are labelled demonstration data, but anyone with an Importer account can upload them; keep them behind sign-in, as the API already does. |
+| The demo's CSV exports (each starts with the "Demonstration data." notice line). | **`data\web\app.db`** (users, password hashes, session hashes, dataset metadata, audit log). |
 | `/api/health` | **`data\web\session_secret.txt`** or the `FAIRLEND_SESSION_SECRET` value. |
 | | **`data\web\datasets\`** (imported data and its labels) and **backups** of `data\web\`. |
 | | The Import, Review labels, Users and Audit pages (they need sign-in and the right role; the API enforces it). |
@@ -37,7 +37,7 @@ internet --HTTPS--> reverse proxy (TLS, rate limits) --> web app (next start, po
 
 ## 3. HTTPS and the cookie
 
-1. Put a reverse proxy with a real certificate in front (for example Caddy, nginx or the host's own TLS front
+1. Put a reverse proxy with a trusted certificate in front (for example Caddy, nginx or the host's own TLS front
    end). Redirect plain HTTP to HTTPS.
 2. Set these settings for the API:
 
@@ -56,7 +56,7 @@ On a server, do not rely on the generated `data\web\session_secret.txt`. Set the
 store and give it to the API as `FAIRLEND_SESSION_SECRET` (at least 32 random bytes). To make one in PowerShell:
 
 ```powershell
--join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
+[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))   # PowerShell 7
 ```
 
 Store it in the host's secret settings, never in Git and never in a `.env` file in the project. Changing the secret
@@ -122,8 +122,10 @@ a host, the storage must move to managed services first:
 | `data\web\datasets\<name>\` folders | object storage: implement `DatasetFiles` in `api/store.py` to download a dataset's folder to a local cache before loading, and upload after an import or a review |
 | `data\web\session_secret.txt` | the host's secret store (`FAIRLEND_SESSION_SECRET`) |
 
-The interfaces in `api/store.py` exist for exactly this. Until they are implemented and tested, do not invite users
-to an app on a host without a persistent disk.
+Phase 13 implements this: with `DATABASE_URL` set, users, sessions, the audit log and the catalog live in Postgres,
+and each dataset's files are stored there as blobs and cached to a temporary folder on first use
+(`api/appdb.py`, `api/store.py` `PostgresBlobFiles`). The step-by-step for Neon, Render and Vercel is
+`docs/DEPLOY_FREE.md`.
 
 ## 9. Before you open it to anyone: checklist
 

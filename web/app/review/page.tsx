@@ -148,7 +148,7 @@ function ReviewInner() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-ink-2">Reviewing <span className="font-semibold text-ink">{current.name}</span>. The labels come from a model
-        trained on synthetic text; on other data it can often be wrong. Labels a person has checked replace the model&apos;s label
+        trained on the built-in demonstration text; on other text it can often be wrong. Labels a person has checked replace the model&apos;s label
         on every page and are recorded in the audit log.</p>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiTile accent="teal" label="Labels a person has checked" value={int(data.reviewed)} detail={`of ${int(data.messages)} messages (${pct(data.share_reviewed)})`} />

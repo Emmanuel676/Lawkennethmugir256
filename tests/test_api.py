@@ -78,7 +78,7 @@ def test_the_api_serves_the_untouched_demo(client):
         conn.close()
     health = _get(client, "/api/health")
     assert health["status"] == "ok" and health["presentation_mode"] is True and health["read_only"] is True
-    assert _get(client, "/api/meta")["dataset"]["synthetic"] is True
+    assert _get(client, "/api/meta")["dataset"]["demonstration"] is True  # Phase 13: neutral wording
 
 
 # --- Number parity with the brief ----------------------------------------------------------------------------
@@ -197,13 +197,13 @@ def test_redaction_is_applied_to_message_text(client):
 
 # --- Repayments follow-up CSV --------------------------------------------------------------------------------
 
-def test_follow_up_csv_carries_the_synthetic_notice_line(client):
+def test_follow_up_csv_carries_the_notice_line(client):
     response = client.get("/api/repayments/follow-up.csv")
     assert response.status_code == 200 and response.headers["content-type"].startswith("text/csv")
     assert "repayment_follow_up.csv" in response.headers["content-disposition"]
     text = response.content.decode("utf-8")
     first = text.splitlines()[0]
-    notice = client.app.state.source.snapshot().data.notice
+    notice = client.app.state.source.snapshot().notice  # "Demonstration data." (Phase 13)
     assert first.startswith("# ") and notice in first and rp.PROMPT in first
     frame = pd.read_csv(io.StringIO(text), comment="#")
     assert len(frame) == REPAYMENTS["follow_up"]
@@ -292,7 +292,7 @@ def test_data_is_loaded_at_start_up_not_on_first_request(monkeypatch):
 def test_the_api_refuses_to_serve_anything_but_the_demo(monkeypatch, demo_ready):
     monkeypatch.setenv(PRESENT_VARIABLE, "0")
     source = DemoDataSource()
-    with pytest.raises(DataNotReady, match="synthetic demo only"):
+    with pytest.raises(DataNotReady, match="built-in demonstration dataset"):
         source.load()
 
 
@@ -316,4 +316,4 @@ def test_api_wording_never_calls_anyone_guilty(client):
         assert not words.search(path.read_text(encoding="utf-8")), path.name
     for endpoint in ("/api/meta", "/api/overview", "/api/lenders", "/api/repayments"):
         assert not words.search(client.get(endpoint).text), endpoint
-    assert views.TRUST_LINE == "Synthetic data. A flag is a prompt for a human to look, not a verdict."
+    assert views.TRUST_LINE == "Demonstration data. A flag is a prompt for a human to look, not a verdict."

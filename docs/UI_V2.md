@@ -1,4 +1,4 @@
-# FairLend Watch web interface v2 (Phases 12A, 12B and 12C)
+# FairLend Watch web interface v2 (Phases 12A, 12B, 12C and 13)
 
 A web interface built in JavaScript (Next.js + TypeScript + Tailwind + Recharts) on top of the existing Python
 engine. It shows **the same numbers as the Streamlit app**, because every figure comes from the code in `src/`
@@ -10,9 +10,13 @@ still works as before and stays as the fallback.
 * **12C:** the Guided demo, Export, About and Review labels pages; the owed amounts split on Repayments; browser
   tests with an accessibility check; a deployment recipe (`docs/DEPLOY_V2.md`).
 
+* **13:** neutral wording ("Demonstration data" everywhere); imports need no special endings on lender names or messages;
+  Postgres storage for hosts with no permanent disk (`DATABASE_URL`); deployment files for Render and Vercel
+  (`render.yaml`, `web/vercel.json`, `docs/DEPLOY_FREE.md`).
+
 With 12C the web app can replace Streamlit for presentations.
 
-Synthetic data. A flag is a prompt for a human to look, not a verdict.
+Demonstration data. A flag is a prompt for a human to look, not a verdict.
 
 ---
 
@@ -65,30 +69,30 @@ its argon2 hash is stored. Then sign in at http://localhost:3000/signin and add 
 Before you start, off stage:
 
 * Run both windows (step 1) and open http://localhost:3000 **signed out**. Signed out, the app shows the demo only,
-  and the trust strip reads "Synthetic data. A flag is a prompt for a human to look, not a verdict."
+  and the trust strip reads "Demonstration data. A flag is a prompt for a human to look, not a verdict."
 * Open **Guided demo** (sidebar, under Present; on a phone, **More**) in a second tab.
 
 | Time | Click | Say |
 |---|---|---|
-| 0:00-0:40 | **Overview** | "FairLend Watch gives a regulator a view **across** lenders that no single lender has. Three things up front: **this data is synthetic**; **the accuracy numbers are optimistic** because the data was built to be separable; and **a person decides**. Of 5,000 made-up borrowers, 280 are in the high band and 863 in medium. 22.8% of the 26,780 collection messages were labelled abusive." |
+| 0:00-0:40 | **Overview** | "FairLend Watch gives a regulator a view **across** lenders that no single lender has. Three things up front: **this is demonstration data**; **the accuracy numbers are optimistic** because the data was built to be separable; and **a person decides**. Of 5,000 made-up borrowers, 280 are in the high band and 863 in medium. 22.8% of the 26,780 collection messages were labelled abusive." |
 | 0:40-1:25 | Guided demo, step 1: **Open on the Borrowers page** | "Borrower B01767 scores 89 of 100: 5 open lenders and debt of 3.1 times monthly income. No single lender could see this. Every point is explained in the score breakdown." |
 | 1:25-2:05 | Step 2 | "B00030 scores only 28, but took 5 new loans within days of repaying others: borrowing to repay. A rule lifts repeated cycling to medium so a person looks, and the page says the rule did it." |
 | 2:05-2:40 | Step 3 | "B00550 has 5 open lenders but owes only 0.23 times monthly income, and stays in medium. The score is not just a lender count." |
 | 2:40-3:20 | Step 4 | "B02339 received 81 collection messages, and 48 of them were labelled abusive. Of those 48, 11 were sent late at night and 14 were sent to other people instead of the borrower. The labels are a model's guesses about the wording; late night and third party are facts of the message." |
 | 3:20-3:55 | Step 5 (opens Lenders) | "Kestrel Instant Cash sent only 6 messages: too few to rank. Its interval runs from 0% to 39%, so a small lender cannot top or escape the list by luck." |
 | 3:55-4:35 | Step 6 (opens Lenders) | "Redstone Loans ranks first: 45% of its 2,094 messages were labelled abusive, and even the low end of the 95% interval is 43%. A rank means 'read these messages', not 'this lender broke the law'." |
-| 4:35-5:00 | **About** | "A flag is a prompt, not a verdict. What we have not proven: these are synthetic messages, so real accuracy will be lower. Real data needs legal clearance, redaction (built in), and a person checking a sample of labels on the Review labels page." |
+| 4:35-5:00 | **About** | "A flag is a prompt, not a verdict. What we have not proven: this is demonstration data, built to be separable, so accuracy on other data will be lower. Any other data needs legal clearance, redaction (built in), and a person checking a sample of labels on the Review labels page." |
 
 Optional, 45 seconds: **Repayments**.
 
 * "29.2% of loans were repaid on time, 22.8% inside the 3 grace days, and 12.5% are not being paid."
 * Point at **What is owed on unpaid loans**: "UGX 359.4M is past due, and UGX 849.1M is not yet due. The total is
   not arrears."
-* Then **Export**: "885 borrowers in the follow-up list, downloadable as CSV with the synthetic notice on the first
+* Then **Export**: "885 borrowers in the follow-up list, downloadable as CSV with the notice on the first
   line."
 
-Optional, about 2 minutes, signed in as an Importer: the live import of the synthetic sample pack (section
-"Import the synthetic sample pack" below). Say: "85 borrower codes were already known; 85 of 387 borrowers appear
+Optional, about 2 minutes, signed in as an Importer: the live import of a sample pack (section
+"Import a sample pack" below). Say: "85 borrower codes were already known; 85 of 387 borrowers appear
 at two lenders."
 
 The guided demo's cases are chosen by fixed rules from the computed scores and labels (the same rules as the
@@ -119,34 +123,33 @@ In `docs/ui_v2_screens/`:
 
 The earlier `12a`- and `12b`-era files show the same pages before the 12C navigation was added.
 
-### 5. Test totals (Phase 12C, run in batches)
+### 5. Test totals (Phase 13, run in batches)
 
-This computer runs low on memory, so the Python suite is run **in batches of test files, one process at a time,
-with no API or web server running**. The batches on 2026-11-14:
+This computer runs low on memory, so the Python suite is run **in batches of test files, one process at a time**.
+The batches on 2026-11-15:
 
 | Batch | Files | Passed | Failed | Time |
 |---|---|---:|---:|---:|
-| 1 | test_api, test_api_12c, test_api_auth | 57 | 0 | 69 s |
-| 2 | test_api_datasets | 17 | 0 | 64 s |
-| 3 | test_bootstrap, test_branding_and_paths, test_classifier_local, test_dashboard_data | 130 | 0 | 91 s |
-| 4 | test_dashboard_pages, test_data_page, test_datasets, test_edge_cases | 82 | 0 | 194 s |
-| 5 | test_gemini_check, test_generate_data, test_import_data, test_import_robustness | 185 | 0 | 72 s |
-| 6 | test_lender_comparison, test_money, test_overlap, test_phase9a_rules, test_presentation_and_demo | 147 | 0 | 61 s |
-| 7 | test_redaction, test_repayments, test_review, test_review_page | 76 | 0 | 65 s |
-| 8 | test_sample_pack | 59 | 0 | 142 s |
-| 9 | test_shipped_dataset, test_team_access, test_theme_and_tiles, test_try_message | 89 | 0 | 46 s |
-| **Total (committed test files)** | 30 files | **842** | **0** | about 13 min |
-| extra | test_first_start_phase11 (in the folder but not committed) | 4 | 0 | 24 s |
+| 1 | test_api, test_api_12c, test_api_auth, test_wording | 64 | 0 | 87 s |
+| 2 | test_api_datasets, test_api_postgres (with a throwaway local Postgres) | 26 | 0 | 151 s |
+| 3 | test_bootstrap, test_branding_and_paths, test_classifier_local, test_dashboard_data | 130 | 0 | 97 s |
+| 4 | test_dashboard_pages, test_data_page, test_datasets, test_edge_cases | 82 | 0 | 113 s |
+| 5 | test_gemini_check, test_generate_data, test_import_data, test_import_robustness | 185 | 0 | 48 s |
+| 6 | test_lender_comparison, test_money, test_overlap, test_phase9a_rules, test_presentation_and_demo | 147 | 0 | 47 s |
+| 7 | test_redaction, test_repayments, test_review, test_review_page | 76 | 0 | 74 s |
+| 8 | test_sample_pack | 59 | 0 | 86 s |
+| 9 | test_shipped_dataset, test_team_access, test_theme_and_tiles, test_try_message | 89 | 0 | 52 s |
+| 10 | test_first_start_phase11 | 4 | 0 | 14 s |
+| **Total** | 33 files | **862** | **0** | about 13 min |
 
-To repeat a batch:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_api.py tests\test_api_12c.py tests\test_api_auth.py
-```
+The 9 Postgres tests run only when `FAIRLEND_TEST_DATABASE_URL` points at a test database; without it they are
+skipped and the other 3 tests in that file (the SQLite path is unchanged, the URL is never shown, the API refuses to
+start without a session secret) still run. **Note:** a web server you had left running on port 3000 was still up
+during these batches; the Python tests never use that port, and it was stopped afterwards.
 
 **Browser tests** (separate from the Python suite):
 
-* 6 passed in about 1.5 minutes: keyboard sign-in, keyboard import, keyboard delete, phone width, light theme and
+* 6 passed in about 1.8 minutes: keyboard sign-in, keyboard import, keyboard delete, phone width, light theme and
   dark theme.
 * The accessibility check found no serious or critical problems on any page checked.
 * The web type check and production build pass.
@@ -178,38 +181,39 @@ Signed in as an Admin, open **Users** (sidebar, under Manage; on a phone, **More
 * A sign-in lasts 8 hours (`FAIRLEND_SESSION_HOURS`).
 * **Sign out** is in the account menu.
 
-## Import the synthetic sample pack
+## Import a sample pack
 
 1. Build the sample packs once: `.\dev.ps1 -SamplePack` (writes `sample_pack\`, git-ignored).
 2. Sign in as an Importer or Admin and open **Import data**.
 3. **Step 1** offers the templates (one Excel workbook, or five CSV files in a zip), from the same template builder
    as the Streamlit Data page.
-4. **Step 2:** choose *Create a new dataset*. Name it `SYNTHETIC sample baseline`; where the data came from:
-   `synthetic sample pack`.
+4. **Step 2:** choose *Create a new dataset*. Name it `Sample baseline`; where the data came from:
+   `sample pack`.
 5. **Step 3:** choose *Five CSV files*, select the five files in `sample_pack\baseline\lender_A`, then press
    **Check the files**.
    * Expect "No errors found": 1 lender, 244 borrowers, 666 loans, 20,144 transactions and 1,291 messages.
 6. **Step 4:** tick the permission box and press **Import**.
-   * The message is labelled **"Imported dataset. Passed the synthetic-only check."**
+   * The message reads **"Imported. Shown as demonstration data."**
    * It points to the **Review labels** page.
-7. Add lender B: choose *Add another lender's files to an imported dataset*, pick `SYNTHETIC sample baseline`,
+7. Add lender B: choose *Add another lender's files to an imported dataset*, pick `Sample baseline`,
    select `sample_pack\baseline\lender_B`, then Check and Import.
    * The import reports **85 borrower codes already known**.
    * The dataset has **85 of 387** borrowers at two lenders.
    * Overview shows 0 high, 7 medium and 380 low, the same as the Streamlit import.
 
-**Every upload must pass the synthetic-only check first** (the existing gate in `src/team_access.py`):
+**Every upload goes through the upload check first** (Phase 13, `api/upload_check.py`, built from the checks of
+the earlier gate in `src/team_access.py`):
 
-* lender names end in "(Demo)";
-* every message ends in "(SYNTHETIC)";
-* no phone-, ID- or email-like text;
+* no phone-, ID- or email-like text in lender names or messages;
 * at most 25 MB and 100,000 rows per file.
 
-The check runs in memory. A refused upload is never validated, stored or written anywhere. Then the existing
-importer validates the files and lists errors with row numbers, never cell values. Nothing is saved until there are
-no errors. Message text is always redacted. Passing the check does **not** prove the data is synthetic, so imported
-datasets are labelled "Imported dataset. Passed the synthetic-only check." They are never called synthetic, and they
-never show the REAL DATA banner.
+Lender names and messages need no special endings. The check runs in memory, and a refused upload is never
+validated, stored or written anywhere. Then the existing importer validates the files and lists errors with row
+numbers, never cell values. Nothing is saved until there are no errors. Message text is always redacted, and every
+import, refusal and failure is recorded in the audit log.
+
+Every imported dataset is labelled **"Demonstration data"** in the dataset list, the switcher, the trust strip and
+the first line of every export. No marker is added to rows or lenders.
 
 ## Review labels (Importer and Admin)
 
@@ -259,6 +263,11 @@ elsewhere.
 | `data\web\datasets\<name>\` | one folder per imported dataset: `lending.db`, `predictions.db` (model labels and labels a person has checked), `dataset.json` |
 | `data\web\session_secret.txt` | the session-signing secret, generated on first start unless `FAIRLEND_SESSION_SECRET` is set |
 
+**With `DATABASE_URL` set** (hosts with no permanent disk, `docs/DEPLOY_FREE.md`), the same things live in Postgres
+instead: the tables `users`, `sessions`, `datasets` and `audit`, and each imported dataset's files as blobs in
+`dataset_files`. Those files are cached to a temporary folder on first use and uploaded again after an import or a
+saved review label. Without `DATABASE_URL` nothing changes: SQLite and local folders, as below.
+
 The built-in demo stays in `data\` as always, and nothing in the web API writes to it. To start the web data from
 scratch, stop the API and delete `data\web\`. The demo is not affected.
 
@@ -270,6 +279,8 @@ scratch, stop the API and delete `data\web\`. The demo is not affected.
 | `FAIRLEND_API_HOST` / `FAIRLEND_API_PORT` | `127.0.0.1` / `8000` | Where the API listens. The default is this computer only. |
 | `FAIRLEND_API_URL` | `http://127.0.0.1:8000` | Where the web app forwards `/api/...`. **Read when the web app is built** (`npm run build`) or when `npm run dev` starts. |
 | `FAIRLEND_WEB_DATA` | `data\web` | Users, sessions, dataset metadata, audit log, imported datasets. |
+| `DATABASE_URL` | not set | Postgres for users, sessions, the audit log, the dataset list and the imported datasets' files (Phase 13). Read only from the environment and never printed. When set, `FAIRLEND_SESSION_SECRET` is required and cookies are always Secure. |
+| `FAIRLEND_CACHE_DIR` | a temporary folder | Where Postgres-stored datasets are cached as files on first use. |
 | `FAIRLEND_SESSION_SECRET` | generated file | Session-signing secret. Never commit it. |
 | `FAIRLEND_SESSION_HOURS` | `8` | How long a sign-in lasts. |
 | `FAIRLEND_COOKIE_SECURE` | off | Set to `1` when the app is served over HTTPS. |
@@ -383,9 +394,9 @@ npm --prefix web run test:e2e
 
 ## Not production-grade yet
 
-* **Single process, single machine.** SQLite, local folders and an in-process import lock suit a small team on
-  one computer. The `DatasetCatalog` and `DatasetFiles` interfaces are where Postgres or object storage would plug
-  in (`docs/DEPLOY_V2.md`, section 8).
+* **One API instance at a time.** Locally: SQLite and local folders. Hosted: Postgres (`DATABASE_URL`), with each
+  instance caching dataset files in its own temporary folder, so run one instance only. Imports use an in-process
+  lock.
 * **No HTTPS of its own.** Put it behind an HTTPS reverse proxy and set `FAIRLEND_COOKIE_SECURE=1` first
   (`docs/DEPLOY_V2.md`).
 * **No multi-factor sign-in, no self-service password change, no reset email.** The login throttle is per account,
@@ -394,4 +405,4 @@ npm --prefix web run test:e2e
 * **Review labels does not retrain the model** (the Streamlit Review page can). Every saved label reloads that
   dataset once.
 * **Not covered yet:** no audit-log export, no retention rule, no built-in backups of `data\web\`.
-* **The synthetic-only check is a guard, not a proof.**
+* **The upload check only refuses phone-, ID- and email-like text.** It says nothing else about where data came from.

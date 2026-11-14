@@ -27,7 +27,7 @@ from src.config import load_config
 
 from api import views
 from api.accounts import AccountStore
-from api.appdb import AppDatabase
+from api.appdb import open_database
 from api.audit import AuditLog
 from api.data_source import DataNotReady, DataSource, DataSources, DemoDataSource, Snapshot, UnknownDataset
 from api.deps import Public, Services, dataset_reader
@@ -35,18 +35,21 @@ from api.routes import router as phase12b_router, unknown_dataset_handler
 from api.routes_12c import router as phase12c_router
 from api.security import load_secret
 from api.settings import Settings, load_settings
-from api.store import LocalFolderFiles, SqliteCatalog
+from api.store import LocalFolderFiles, PostgresBlobFiles, SqlCatalog
 
 UPLOAD_PATHS = ("/api/imports",)
 UPLOAD_OVERHEAD = 1024 * 1024  # multipart headers and text fields on top of the files themselves
 
 
 def build_services(settings: Settings, source: DataSource) -> Services:
-    """Wire the stores. Nothing is created on disk until something is first read or written."""
-    db = AppDatabase(settings.data_dir / "app.db")
+    """Wire the stores for the chosen backend: SQLite and local folders when DATABASE_URL is not set (unchanged
+    local behaviour), Postgres (tables + dataset files as blobs) when it is. Nothing is created until first use."""
+    settings.check()  # refuses DATABASE_URL without FAIRLEND_SESSION_SECRET
+    db = open_database(settings)
+    files = (PostgresBlobFiles(db, settings.files_cache) if settings.backend == "postgres"
+             else LocalFolderFiles(settings.data_dir / "datasets"))
     base_cfg = load_config(settings.config_path) if settings.config_path else load_config()
-    sources = DataSources(source, catalog=SqliteCatalog(db), files=LocalFolderFiles(settings.data_dir / "datasets"),
-                          base_cfg_loader=lambda: _copy(base_cfg))
+    sources = DataSources(source, catalog=SqlCatalog(db), files=files, base_cfg_loader=lambda: _copy(base_cfg))
     accounts = AccountStore(db, lambda: load_secret(settings.session_secret, settings.data_dir),
                             session_hours=settings.session_hours, max_attempts=settings.max_login_attempts,
                             lockout_minutes=settings.lockout_minutes,
@@ -82,7 +85,7 @@ def create_app(source: DataSource | None = None, settings: Settings | None = Non
         yield
 
     app = FastAPI(title="FairLend Watch API", version="12B", lifespan=lifespan,
-                  description="Synthetic data. A flag is a prompt for a human to look, not a verdict.")
+                  description="Demonstration data. A flag is a prompt for a human to look, not a verdict.")
     app.state.source = source          # the demo source (Phase 12A name, kept for tests)
     app.state.services = svc
     app.state.classify_imports = classify_imports

@@ -35,7 +35,7 @@ export default function OverviewPage() {
         title="Overview"
         intro={data
           ? <>Who may be over-borrowing across lenders, and which lenders send messages labelled abusive.{" "}
-            {data.dataset.kind === "demo" ? "Synthetic demo dataset" : `${data.dataset.name} (imported, passed the synthetic-only check)`}, data as of {date(data.dataset.as_of_date)}.</>
+            {data.dataset.kind === "demo" ? "Demonstration data (built in)" : `${data.dataset.name} (demonstration data, imported)`}, data as of {date(data.dataset.as_of_date)}.</>
           : "Who may be over-borrowing across lenders, and which lenders send messages labelled abusive."}
       />
 

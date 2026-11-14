@@ -49,9 +49,8 @@ function Result({ outcome }: { outcome: ImportOutcome }) {
     return (
       <div role="alert" className="rounded-xl border border-[#fda4af] bg-[#fff1f2] p-4 text-[#881337] dark:border-[#9f1239] dark:bg-[#2a0a12] dark:text-[#fecdd3]">
         <p className="font-semibold">Upload refused. Nothing was stored.</p>
-        <p className="mt-1 text-sm">This app accepts only data that passes the synthetic-only check: lender names end in
-          “(Demo)”, messages end in “(SYNTHETIC)”, nothing looks like a phone number, an ID number or an email address,
-          and the size and row limits are kept.</p>
+        <p className="mt-1 text-sm">Every upload is checked first: nothing in lender names or messages may look like a
+          phone number, an ID number or an email address, and the size and row limits must be kept.</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{outcome.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
       </div>
     );
@@ -194,7 +193,7 @@ function ImportInner() {
           <a href={apiUrl("/api/imports/template", { format: "csv" })} download
              className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2">Five CSV files (.zip)</a>
         </div>
-        <p className="mt-3 text-xs text-muted">To try it, use the synthetic sample pack: run <code className="rounded bg-surface-2 px-1">.\dev.ps1 -SamplePack</code>,
+        <p className="mt-3 text-xs text-muted">To try it, use a sample pack: run <code className="rounded bg-surface-2 px-1">.\dev.ps1 -SamplePack</code>,
           then upload the five CSV files in <code className="rounded bg-surface-2 px-1">sample_pack\baseline\lender_A</code>.</p>
       </Step>
 
@@ -211,10 +210,10 @@ function ImportInner() {
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div><label htmlFor="ds-name" className="mb-1.5 block text-sm font-medium text-ink-2">Dataset name</label>
               <input id="ds-name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} className={inputClass}
-                     placeholder="for example SYNTHETIC sample baseline" /></div>
+                     placeholder="for example Sample baseline" /></div>
             <div><label htmlFor="ds-source" className="mb-1.5 block text-sm font-medium text-ink-2">Where the data came from</label>
               <input id="ds-source" value={source} maxLength={200} onChange={(e) => setSource(e.target.value)} className={inputClass}
-                     placeholder="for example synthetic sample pack" /></div>
+                     placeholder="for example sample pack" /></div>
             <div className="md:col-span-2"><label htmlFor="ds-notes" className="mb-1.5 block text-sm font-medium text-ink-2">Notes (optional)</label>
               <textarea id="ds-notes" value={notes} maxLength={1000} rows={2} onChange={(e) => setNotes(e.target.value)} className={inputClass} /></div>
           </div>
@@ -256,7 +255,7 @@ function ImportInner() {
           </label>
         </div>
         <p className="mt-3 text-xs text-muted">Message text is always redacted: phone numbers, emails, ID numbers and listed
-          names become [PHONE], [EMAIL], [ID] and [NAME]. Every upload must pass the synthetic-only check first; a refused
+          names become [PHONE], [EMAIL], [ID] and [NAME]. Every upload goes through the upload check first; a refused
           upload is never stored. Limits: {info.data.limits.max_upload_mb} MB, {int(info.data.limits.max_rows_per_file)} rows per file.</p>
         <button type="button" onClick={check} disabled={!files.length || tooBig || busy !== undefined || (mode === "add" && !target)}
                 className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:opacity-40">
@@ -280,10 +279,10 @@ function ImportInner() {
           {mode === "new" ? " and a dataset name" : " and a dataset chosen"}.</p>}
         {done && (
           <div role="status" className="mt-4 rounded-xl border border-[#99d5cf] bg-[#e6f2f1] p-4 text-[#115e59] dark:border-[#115e59] dark:bg-[#042f2e] dark:text-[#99f6e4]">
-            <p className="font-semibold">Imported dataset. Passed the synthetic-only check.</p>
+            <p className="font-semibold">Imported. Shown as demonstration data.</p>
             <p className="mt-1 text-sm">{done.message}</p>
             {done.already_known > 0 && <p className="mt-1 text-sm"><Pill tone="teal">{int(done.already_known)} borrower codes already known</Pill> The same people were already in the dataset from another lender.</p>}
-            <p className="mt-1 text-xs">The check does not prove the data is synthetic. A flag is a prompt for a human to look, not a verdict.</p>
+            <p className="mt-1 text-xs">A flag is a prompt for a human to look, not a verdict.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => { setDataset(done.dataset); router.push("/"); }}
                       className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink">Show this dataset</button>
@@ -304,7 +303,7 @@ export default function ImportPage() {
   return (
     <>
       <PageHeader title="Import data"
-                  intro="Add a shared dataset in four steps. Nothing is saved until the check finds no errors, and only data that passes the synthetic-only check is accepted." />
+                  intro="Add a shared dataset in four steps. Nothing is saved until the check finds no errors. Uploads with phone numbers, ID numbers or email addresses in lender names or messages are refused." />
       <RequireRole role="importer" what="import data">
         <ImportInner />
       </RequireRole>

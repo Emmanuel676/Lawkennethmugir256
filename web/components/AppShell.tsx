@@ -69,7 +69,7 @@ export function DatasetSwitcher({ id }: { id: string }) {
   if (!user) {
     return (
       <p className="text-xs text-muted">
-        <span className="block font-semibold text-ink-2">Synthetic demo dataset</span>
+        <span className="block font-semibold text-ink-2">Demonstration data (built in)</span>
         Sign in to see shared datasets.
       </p>
     );
@@ -80,10 +80,10 @@ export function DatasetSwitcher({ id }: { id: string }) {
       <select id={id} value={dataset} onChange={(e) => setDataset(e.target.value)}
               className="w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink">
         {datasets.map((d) => (
-          <option key={d.slug} value={d.slug}>{d.slug === DEMO ? "Synthetic demo dataset" : `${d.name} (imported)`}</option>
+          <option key={d.slug} value={d.slug}>{d.slug === DEMO ? "Demonstration data (built in)" : `${d.name} (demonstration data)`}</option>
         ))}
       </select>
-      <p className="mt-1 text-xs text-muted">{current.kind === "imported" ? "Imported. Passed the synthetic-only check." : "Built-in synthetic demo."}</p>
+      <p className="mt-1 text-xs text-muted">{current.kind === "imported" ? "Demonstration data, imported." : "Demonstration data, built in."}</p>
     </div>
   );
 }

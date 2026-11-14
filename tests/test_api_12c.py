@@ -150,18 +150,18 @@ def test_exports_are_the_streamlit_files_with_the_notice_first(app, anon):
     snap = app.state.source.snapshot()
     flagged = anon.get("/api/export/flagged-borrowers.csv")
     assert flagged.status_code == 200 and "flagged_borrowers.csv" in flagged.headers["content-disposition"]
-    expected = flagged_borrowers_csv(filter_borrowers(snap.data.borrowers, bands=["high", "medium"]), snap.data.notice)
+    expected = flagged_borrowers_csv(filter_borrowers(snap.data.borrowers, bands=["high", "medium"]), snap.notice)
     assert flagged.content == expected
-    assert flagged.content.decode("utf-8").splitlines()[0].startswith(f"# {snap.data.notice}")
+    assert flagged.content.decode("utf-8").splitlines()[0].startswith("# Demonstration data.")
     assert len(pd.read_csv(io.BytesIO(flagged.content), comment="#")) == 280 + 863
     only_high = anon.get("/api/export/flagged-borrowers.csv?bands=high&min_abusive=3").content
     assert only_high == flagged_borrowers_csv(
-        filter_borrowers(snap.data.borrowers, bands=["high"], min_abusive_messages=3), snap.data.notice)
+        filter_borrowers(snap.data.borrowers, bands=["high"], min_abusive_messages=3), snap.notice)
     lenders = anon.get("/api/export/lender-comparison.csv")
-    assert lenders.content == lender_comparison_csv(snap.data.lenders, snap.data.classifier, snap.data.notice,
+    assert lenders.content == lender_comparison_csv(snap.data.lenders, snap.data.classifier, snap.notice,
                                                     snap.data.human_share)
     follow = anon.get("/api/repayments/follow-up.csv").content.decode("utf-8")
-    assert follow.splitlines()[0].startswith(f"# {snap.data.notice}")
+    assert follow.splitlines()[0].startswith("# Demonstration data.")
     summary = anon.get("/api/export").json()
     assert (summary["flagged_borrowers"], summary["lenders"], summary["follow_up_borrowers"]) == (1143, 13, 885)
 
@@ -174,7 +174,7 @@ def test_an_imported_datasets_exports_need_a_signed_in_viewer(app, anon, importe
         response = _signed_in(app, "viewer").get(f"{path}?dataset={slug}")
         assert response.status_code == 200, path
     first = _signed_in(app, "viewer").get(f"/api/export/flagged-borrowers.csv?dataset={slug}").text.splitlines()[0]
-    assert "Imported dataset. Passed the synthetic-only check." in first and "REAL DATA" not in first
+    assert first.startswith("# Demonstration data.") and "REAL DATA" not in first
 
 
 # --- Repayments: owed split ------------------------------------------------------------------------------------------
@@ -247,7 +247,7 @@ def test_a_person_checks_labels_and_they_are_stored_counted_and_audited(app, imp
     assert review["actor"] == "importer@example.org" and review["detail"]["label"] == chosen
     assert "(SYNTHETIC)" not in json.dumps(entries)
     export = importer.get(f"/api/review/export.csv?dataset={slug}").text
-    assert export.startswith("# Imported dataset. Passed the synthetic-only check.")
+    assert export.startswith("# Demonstration data.")
     assert _demo_fingerprint() == DEMO_FINGERPRINT
 
 

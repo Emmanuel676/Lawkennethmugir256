@@ -1,11 +1,12 @@
-"""The Data import page's logic (Phase 12B): template, synthetic-only gate, validation, import. No HTTP here.
+"""The Data import page's logic (Phase 12B, upload check changed in Phase 13): template, upload check, validation,
+import. No HTTP here.
 
 Everything reuses the existing code, unchanged:
   template      src.import_templates.build_xlsx_template / build_csv_templates
-  gate          src.team_access.synthetic_gate: "(Demo)" lenders, "(SYNTHETIC)" messages, no phone-, ID- or
-                email-like text, and the size and row limits in config.yaml (team_demo.max_upload_mb,
-                team_demo.max_rows_per_file). It runs on the uploaded bytes IN MEMORY, before anything else; a
-                refused upload is never validated, stored or written anywhere.
+  upload check  api.upload_check: no phone-, ID- or email-like text in lender names or messages, and the size and
+                row limits in config.yaml (team_demo.max_upload_mb, team_demo.max_rows_per_file). The Phase 11
+                "(Demo)" / "(SYNTHETIC)" endings are NOT required here. It runs on the uploaded bytes IN MEMORY,
+                before anything else; a refused upload is never validated, stored or written anywhere.
   validation    src.import_data.validate_upload (plain-language errors, warnings and notes with row numbers)
   import        src.import_data.import_upload (validates again; writes in ONE transaction only when there are no
                 errors; redacts message text; labels the messages with the local classifier)
@@ -25,9 +26,8 @@ from src.datasets import DEMO, DatasetError
 from src.import_data import (PERMISSION_TEXT, ImportReport, Upload, default_as_of, import_upload, read_csvs,
                              read_existing, read_xlsx, validate_upload)
 from src.import_templates import build_csv_templates, build_xlsx_template
-from src.team_access import synthetic_gate
 
-from api import security
+from api import security, upload_check
 from api.store import DatasetRecord
 
 MAX_SHOWN = 200
@@ -87,14 +87,8 @@ def template_csv_zip(cfg: dict) -> bytes:
     return buffer.getvalue()
 
 
-def _plain(reason: str) -> str:
-    """The gate's wording was written for Phase 11 team sessions; say 'this app' here instead."""
-    return (reason.replace("Team demo sessions accept", "This app accepts")
-            .replace("team demo sessions accept", "this app accepts"))
-
-
 def gate(files: dict[str, bytes], file_type: str, cfg: dict) -> list[str]:
-    """The synthetic-only gate on the uploaded bytes in memory. Empty list = it may go on to validation."""
+    """The upload check on the uploaded bytes in memory. Empty list = it may go on to validation."""
     if file_type not in ("xlsx", "csv"):
         raise ImportRequestError("Choose the file type: one Excel workbook (xlsx) or five CSV files (csv).")
     if not files:
@@ -102,7 +96,7 @@ def gate(files: dict[str, bytes], file_type: str, cfg: dict) -> list[str]:
     if file_type == "xlsx" and len(files) != 1:
         raise ImportRequestError("Upload exactly one Excel workbook (.xlsx).")
     try:
-        return [_plain(reason) for reason in synthetic_gate(files, file_type, cfg)]
+        return upload_check.check(files, file_type, cfg)
     except Exception as error:  # an unreadable file is a refusal, never a crash (no value is repeated)
         return [f"The file(s) could not be read ({type(error).__name__}). Use the template and save as "
                 + ("an Excel workbook (.xlsx)." if file_type == "xlsx" else "CSV files.")]
@@ -126,8 +120,7 @@ def check(files: dict[str, bytes], file_type: str, *, engine_cfg: dict, mode: st
     """Gate, then validate. Writes nothing in any case."""
     reasons = gate(files, file_type, engine_cfg)
     if reasons:
-        return Outcome("refused", reasons=reasons, message="This upload was refused by the synthetic-only check. "
-                                                            "Nothing was stored.")
+        return Outcome("refused", reasons=reasons, message="This upload was refused by the upload check. Nothing was stored.")
     upload = _upload(files, file_type)
     suggested = default_as_of(upload, day_first)
     existing = read_existing(target_lending) if mode == "add" and target_lending is not None else None
@@ -152,10 +145,9 @@ def run_import(files: dict[str, bytes], file_type: str, *, engine_cfg: dict, mod
         raise ImportRequestError("Choose an imported dataset to add to. The demo cannot be changed.")
     reasons = gate(files, file_type, engine_cfg)
     if reasons:
-        return Outcome("refused", reasons=reasons, message="This upload was refused by the synthetic-only check. "
-                                                            "Nothing was stored.")
+        return Outcome("refused", reasons=reasons, message="This upload was refused by the upload check. Nothing was stored.")
     with _import_lock:
-        if mode == "add" and catalog.get(target) is None:
+        if mode == "add" and (catalog.get(target) is None or not files_store.exists(engine_cfg, target)):
             raise ImportRequestError("There is no imported dataset with that name to add to.")
         upload = _upload(files, file_type)
         suggested = default_as_of(upload, day_first)
@@ -169,6 +161,7 @@ def run_import(files: dict[str, bytes], file_type: str, *, engine_cfg: dict, mod
             stage = "invalid" if result.report is not None and not result.report.ok else "failed"
             return Outcome(stage, report=result.report, message=result.message)
         slug = result.dataset
+        files_store.save(engine_cfg, slug)  # Postgres: upload the dataset's files; local folders: nothing to do
         counts = files_store.counts(engine_cfg, slug)
         at = security.now()
         if mode == "new":

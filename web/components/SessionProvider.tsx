@@ -24,7 +24,7 @@ interface SessionContext {
 }
 
 const DEMO_ENTRY: DatasetEntry = {
-  slug: DEMO, name: "Synthetic demo dataset", kind: "demo", label: "Built-in synthetic demo", notes: "", source: "",
+  slug: DEMO, name: "Demonstration data (built in)", kind: "demo", label: "Demonstration data. Built in; cannot be changed or deleted.", notes: "", source: "",
   added_by: "built in", added_at: null, updated_at: null, as_of_date: "", counts: {}, imports: 0, deletable: false,
 };
 

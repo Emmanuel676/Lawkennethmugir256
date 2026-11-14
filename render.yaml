@@ -1,0 +1,41 @@
+# Render blueprint for the FairLend Watch API (Phase 13). PREPARED, NOT DEPLOYED. Step by step: docs/DEPLOY_FREE.md.
+#
+# The build installs the API's requirements and prepares the built-in demonstration dataset (python -m api.prepare),
+# so the data exists before the service starts and no visitor ever waits for a build. At start the API only checks
+# that the prepared data is fresh, loads it, and answers on Render's $PORT.
+#
+# Secrets are NOT in this file. Every "sync: false" value is typed into the Render dashboard (Environment):
+#   DATABASE_URL             the Neon connection string (users, sessions, audit log, catalog, imported datasets)
+#   FAIRLEND_SESSION_SECRET  a fixed random secret; the API refuses to start with DATABASE_URL and no secret
+#   FAIRLEND_WEB_ORIGINS     the web app's public address, for example https://fairlend-watch.vercel.app
+#   LENDING_MONITOR_CONFIG   leave unset; set to deploy/config.small.yaml if the API runs out of memory
+#
+# Memory (measured on the full 5,000-borrower demo, see docs/DEPLOY_FREE.md): about 225 MB after start-up and
+# 290 MB at the peak of an import of the largest sample folder, inside the free plan's 512 MB.
+services:
+  - type: web
+    name: fairlend-watch-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements-api.txt && python -m api.prepare
+    startCommand: python -m api
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: FAIRLEND_API_HOST
+        value: "0.0.0.0"          # listen on Render's network; the port comes from $PORT
+      - key: FAIRLEND_PRESENT
+        value: "1"                # the built-in dataset is the public demo
+      - key: FAIRLEND_SESSION_HOURS
+        value: "8"
+      - key: DATABASE_URL
+        sync: false
+      - key: FAIRLEND_SESSION_SECRET
+        sync: false
+      - key: FAIRLEND_WEB_ORIGINS
+        sync: false
+      - key: LENDING_MONITOR_CONFIG
+        sync: false

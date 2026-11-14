@@ -92,10 +92,11 @@ class AccountStore:
         with self.db.connect() as conn:
             if conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
                 raise AccountError("A user with that email already exists.")
-            cursor = conn.execute(
-                "INSERT INTO users (email, role, password_hash, created_at, created_by) VALUES (?, ?, ?, ?, ?)",
-                (email, role, security.hash_password(password), security.now(), created_by))
-            row = conn.execute("SELECT * FROM users WHERE id = ?", (cursor.lastrowid,)).fetchone()
+            new_id = conn.execute(
+                "INSERT INTO users (email, role, password_hash, created_at, created_by) VALUES (?, ?, ?, ?, ?) "
+                "RETURNING id", (email, role, security.hash_password(password), security.now(), created_by)
+            ).fetchone()["id"]
+            row = conn.execute("SELECT * FROM users WHERE id = ?", (new_id,)).fetchone()
         return _user(row)
 
     def get(self, user_id: int) -> User | None:
@@ -110,7 +111,7 @@ class AccountStore:
         return [_user(row, at) for row in rows]
 
     def count_admins(self, conn) -> int:
-        return conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND disabled = 0").fetchone()[0]
+        return conn.execute("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled = 0").fetchone()["n"]
 
     def update_user(self, user_id: int, *, role: str | None = None, disabled: bool | None = None,
                     acting: User) -> User:

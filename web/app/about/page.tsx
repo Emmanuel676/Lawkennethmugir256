@@ -84,10 +84,10 @@ export default function AboutPage() {
 
           <Card id="limits" title="Limits">
             <ul className="list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-ink-2">
-              <li><strong className="text-ink">The demo is synthetic.</strong> It describes no real people, loans, lenders or messages.</li>
-              <li><strong className="text-ink">Accuracy is optimistic.</strong> The demo was generated to be separable; real borrowers and real messages are messier.</li>
-              <li><strong className="text-ink">Labels are a model&apos;s guesses about wording.</strong> The model was trained on synthetic text and makes no legal judgement. Check a sample before relying on them.</li>
-              <li><strong className="text-ink">Imported datasets passed the synthetic-only check,</strong> which does not prove they are synthetic.</li>
+              <li><strong className="text-ink">This is demonstration data.</strong> The people, loans, lenders and messages are made up for showing how the tool works.</li>
+              <li><strong className="text-ink">Accuracy is optimistic.</strong> The built-in data was generated to be separable; other data is usually messier.</li>
+              <li><strong className="text-ink">Labels are a model&apos;s guesses about wording.</strong> The model was trained on the built-in demonstration text and makes no legal judgement. Check a sample before relying on them.</li>
+              <li><strong className="text-ink">Imported datasets are labelled demonstration data too.</strong> The upload check refuses phone numbers, ID numbers and email addresses; it says nothing else about where the data came from.</li>
               <li><strong className="text-ink">Some harassed borrowers have a low risk score.</strong> Their problem is the messages, not the debt: filter by messages labelled abusive on the Borrowers page.</li>
               <li><strong className="text-ink">Cycling borrowers are flagged mainly by the cycling rule,</strong> not by their score.</li>
               <li><strong className="text-ink">A person decides.</strong> A flag or a rank means someone should look. It is never a finding or a verdict.</li>

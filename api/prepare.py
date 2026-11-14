@@ -1,4 +1,4 @@
-"""Prepare the synthetic demo for the API: build it if it is missing or stale, otherwise do nothing.
+"""Prepare the built-in demonstration dataset for the API: build it if missing or stale, otherwise do nothing.
 
     python -m api.prepare
 

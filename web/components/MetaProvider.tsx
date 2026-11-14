@@ -6,9 +6,8 @@ import type { Meta } from "@/lib/api";
 
 import { useCurrentDataset, useDatasetApi } from "./SessionProvider";
 
-export const TRUST_LINE = "Synthetic data. A flag is a prompt for a human to look, not a verdict.";
-export const IMPORTED_TRUST_LINE =
-  "Imported dataset. Passed the synthetic-only check. A flag is a prompt for a human to look, not a verdict.";
+export const TRUST_LINE = "Demonstration data. A flag is a prompt for a human to look, not a verdict.";
+export const IMPORTED_TRUST_LINE = TRUST_LINE;  // every dataset is demonstration data
 
 // Shown only until /api/meta arrives (or if it cannot be reached), so terms always have an explanation.
 const FALLBACK_GLOSSARY: Record<string, string> = {
@@ -32,7 +31,7 @@ const Context = createContext<MetaContext>({ meta: undefined, glossary: FALLBACK
 export function MetaProvider({ children }: { children: ReactNode }) {
   const { data } = useDatasetApi<Meta>("/api/meta");
   const current = useCurrentDataset();
-  // Until the chosen dataset's own line arrives, never show the demo's "Synthetic data." for an imported dataset.
+  // Until the chosen dataset's own line arrives, show the same neutral line.
   const fallback = current.kind === "imported" ? IMPORTED_TRUST_LINE : TRUST_LINE;
   const value: MetaContext = {
     meta: data,

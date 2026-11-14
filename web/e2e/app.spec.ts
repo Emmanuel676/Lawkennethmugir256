@@ -9,7 +9,7 @@ import { expect, test, type Page } from "@playwright/test";
 const PASSWORD = process.env.E2E_PASSWORD!;
 const PACK = path.resolve(__dirname, "..", "..", "sample_pack", "baseline", "lender_D");
 const TABLES = ["lenders", "borrowers", "loans", "transactions", "messages"];
-const DATASET = "SYNTHETIC e2e lender D";
+const DATASET = "E2E lender D";
 
 async function expectAccessible(page: Page, label: string) {
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
@@ -53,7 +53,7 @@ test.describe.serial("keyboard paths", () => {
     await expectAccessible(page, "datasets page");
   });
 
-  test("import the synthetic lender D pack with the keyboard", async ({ page }) => {
+  test("import the lender D sample pack with the keyboard", async ({ page }) => {
     test.skip(!existsSync(path.join(PACK, "lenders.csv")), "Build the sample packs first: .\\dev.ps1 -SamplePack");
     await signInWithKeyboard(page, "importer");
     await page.goto("/import");
@@ -69,7 +69,7 @@ test.describe.serial("keyboard paths", () => {
     await page.keyboard.press("Space");
     await tabTo(page, "button:text-is('Import')");
     await page.keyboard.press("Enter");
-    await expect(page.getByText("Imported dataset. Passed the synthetic-only check.").first()).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText("Imported. Shown as demonstration data.").first()).toBeVisible({ timeout: 90_000 });
     await expect(page.getByText("Review labels page")).toBeVisible();
     await expectAccessible(page, "import page after an import");
   });

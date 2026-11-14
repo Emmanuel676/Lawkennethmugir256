@@ -123,7 +123,7 @@ export default function RepaymentsPage() {
                   intro="Who pays on time, who pays late, and who is not paying, so a person knows whose file to open. It says nothing about anyone's creditworthiness." />
 
       <div role="note" className="mb-6 rounded-xl border border-amber/50 bg-tint-amber p-4 text-sm leading-relaxed text-[#7c2d12] dark:bg-[#3a2410] dark:text-[#fde6c4]">
-        <p className="font-semibold">{data?.trust_line ?? "Synthetic data. A flag is a prompt for a human to look, not a verdict."}</p>
+        <p className="font-semibold">{data?.trust_line ?? "Demonstration data. A flag is a prompt for a human to look, not a verdict."}</p>
         <p className="mt-1">{data?.prompt ?? "Follow-up prompt, not a verdict or a credit score."}{" "}
           {data?.owed_note ?? "The total owed includes loans that are not yet due."}</p>
       </div>
@@ -184,7 +184,7 @@ export default function RepaymentsPage() {
 
           {data.lump && (
             <p className="text-sm text-muted">In this dataset every loan was repaid in one payment, so &apos;overdue but paying&apos; is
-              rare here. The daily-repayment story is shown on the synthetic sample packs (docs\ONBOARDING_DEMO.md).</p>
+              rare here. The daily-repayment story is shown on the sample packs (docs\ONBOARDING_DEMO.md).</p>
           )}
 
           <div className="grid gap-6 xl:grid-cols-2">

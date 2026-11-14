@@ -16,6 +16,7 @@ from src.datasets import DEMO, get_dataset_paths
 from src.import_data import PERMISSION_TEXT
 
 from api import imports as importing
+from api import wording
 from api.accounts import NOT_RECOGNISED, ROLES, AccountError, User
 from api.audit import ACTIONS
 from api.data_source import IMPORTED_LABEL, UnknownDataset
@@ -52,7 +53,7 @@ def login(body: Credentials, request: Request, _: User | None = Public):
         return JSONResponse({"detail": NOT_RECOGNISED}, status_code=401)
     response = JSONResponse(_me(user))
     response.set_cookie(COOKIE, svc.accounts.start_session(user), max_age=int(svc.accounts.session_seconds),
-                        httponly=True, samesite="strict", secure=svc.settings.cookie_secure, path="/")
+                        httponly=True, samesite="strict", secure=svc.settings.secure_cookies, path="/")
     return response
 
 
@@ -60,7 +61,8 @@ def login(body: Credentials, request: Request, _: User | None = Public):
 def logout(request: Request, _: User | None = Public):
     services(request).accounts.end_session(request.cookies.get(COOKIE))
     response = JSONResponse({"user": None, "roles": list(ROLES)})
-    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="strict", secure=services(request).settings.cookie_secure)
+    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="strict",
+                           secure=services(request).settings.secure_cookies)
     return response
 
 
@@ -141,7 +143,7 @@ def _demo_entry(request: Request) -> dict:
     snap = services(request).sources.demo.snapshot()
     counts = {"lenders": int(len(snap.data.lenders)), "borrowers": int(len(snap.data.borrowers)),
               "loans": int(len(snap.data.loans)), "messages": int(len(snap.data.messages))}
-    return {"slug": DEMO, "name": "Synthetic demo dataset", "kind": "demo", "label": "Built-in synthetic demo",
+    return {"slug": DEMO, "name": wording.DEMO_NAME, "kind": "demo", "label": wording.DEMO_LABEL,
             "notes": "Built from config.yaml and a fixed seed. Cannot be changed or deleted.", "source": "built in",
             "added_by": "built in", "added_at": None, "updated_at": None, "as_of_date": snap.data.as_of_date,
             "counts": counts, "imports": 0, "deletable": False}

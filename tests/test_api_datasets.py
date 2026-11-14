@@ -131,10 +131,19 @@ def test_templates_come_from_the_existing_builder(app):
     assert sorted(names) == sorted(f"{t}.csv" for t in TABLES)
 
 
-# --- The synthetic-only gate ---------------------------------------------------------------------------------------
+# --- The upload check (Phase 13: no "(Demo)" / "(SYNTHETIC)" endings needed) ----------------------------------------
 
 def _no_demo_suffix(table, content):
     return content.replace(b" (Demo)", b"") if table == "lenders" else content
+
+
+def _no_markers(table, content):
+    """Lender names without "(Demo)" and messages without "(SYNTHETIC)": ordinary files."""
+    if table == "lenders":
+        return content.replace(b" (Demo)", b"")
+    if table == "messages":
+        return content.replace(b" (SYNTHETIC)", b"")
+    return content
 
 
 def _phone_in_message(table, content):
@@ -145,7 +154,17 @@ def _phone_in_message(table, content):
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
-@pytest.mark.parametrize("change, words", [(_no_demo_suffix, "(Demo)"), (_phone_in_message, "phone number")])
+def test_ordinary_files_without_markers_pass_the_upload_check(app, pack):
+    client = _signed_in(app, "importer")
+    before = _datasets_tree(app)
+    body = client.post("/api/imports/check", data=_form(name="Plain files"), files=_csv_files(pack / "lender_A", _no_markers),
+                       headers=GOOD).json()
+    assert body["stage"] == "valid", body
+    assert body["report"]["counts"]["messages"] == 1291
+    assert _datasets_tree(app) == before  # a check writes nothing
+
+
+@pytest.mark.parametrize("change, words", [(_phone_in_message, "phone number")])
 def test_a_refused_upload_writes_nothing(app, pack, change, words):
     client = _signed_in(app, "importer")
     before_tree, before_list = _datasets_tree(app), client.get("/api/datasets").json()["datasets"]
@@ -203,7 +222,7 @@ def test_a_viewer_cannot_import_and_the_demo_cannot_be_changed(app, pack):
                                 files=_csv_files(pack / "lender_B"), headers=GOOD)
     assert add_to_demo.status_code == 400 and "demo" in add_to_demo.json()["detail"].lower()
     admin = _signed_in(app, "admin")
-    delete_demo = admin.request("DELETE", "/api/datasets/demo", json={"confirm_name": "Synthetic demo dataset"},
+    delete_demo = admin.request("DELETE", "/api/datasets/demo", json={"confirm_name": "Demonstration data (built in)"},
                                 headers=GOOD)
     assert delete_demo.status_code == 400
     assert _demo_fingerprint() == DEMO_FINGERPRINT
@@ -268,17 +287,17 @@ def test_api_numbers_equal_a_direct_engine_import_of_the_same_pack(app, baseline
     assert api["flagged_and_harassed"] == direct["flagged_and_harassed"]
 
 
-def test_imported_datasets_are_labelled_and_never_called_real_or_synthetic(app, baseline):
+def test_imported_datasets_are_labelled_demonstration_data(app, baseline):
     client = _signed_in(app, "viewer")
     slug = baseline["slug"]
     meta = client.get(f"/api/meta?dataset={slug}").json()
-    assert meta["dataset"]["label"] == IMPORTED_LABEL == "Imported dataset. Passed the synthetic-only check."
-    assert meta["dataset"]["synthetic"] is False and meta["dataset"]["kind"] == "imported"
+    assert meta["dataset"]["label"] == IMPORTED_LABEL == "Demonstration data"
+    assert meta["dataset"]["demonstration"] is True and meta["dataset"]["kind"] == "imported"
     assert meta["trust_line"] == IMPORTED_TRUST_LINE
     assert "A flag is a prompt for a human to look, not a verdict." in meta["trust_line"]
     csv = client.get(f"/api/repayments/follow-up.csv?dataset={slug}").content.decode("utf-8")
     first_line = csv.splitlines()[0]
-    assert IMPORTED_LABEL in first_line and "does not prove" in first_line
+    assert first_line.startswith("# Demonstration data.")
     for endpoint in ("meta", "overview", "repayments", "lenders"):
         text = client.get(f"/api/{endpoint}?dataset={slug}").text
         assert "REAL DATA" not in text and "Confidential" not in text, endpoint

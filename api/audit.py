@@ -14,7 +14,7 @@ from api.appdb import AppDatabase
 ACTIONS = {
     "import_new": "Imported a new dataset",
     "import_add": "Added a lender's files to a dataset",
-    "import_refused": "Upload refused by the synthetic-only check",
+    "import_refused": "Upload refused by the upload check",
     "import_failed": "Import stopped by validation errors",
     "dataset_delete": "Deleted a dataset",
     "user_create": "Created a user",
@@ -40,7 +40,7 @@ class AuditLog:
 
     def entries(self, limit: int = 200, offset: int = 0) -> tuple[int, list[dict]]:
         with self.db.connect() as conn:
-            total = conn.execute("SELECT COUNT(*) FROM audit").fetchone()[0]
+            total = conn.execute("SELECT COUNT(*) AS n FROM audit").fetchone()["n"]
             rows = conn.execute("SELECT * FROM audit ORDER BY id DESC LIMIT ? OFFSET ?",
                                 (int(limit), int(offset))).fetchall()
         return total, [{"id": r["id"], "at": r["at"], "actor": r["actor"], "action": r["action"],

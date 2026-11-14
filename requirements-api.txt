@@ -1,6 +1,7 @@
 # Phase 12A/12B: the API (api/) behind the new web interface (web/).
 # The app's own requirements plus FastAPI, the uvicorn server, httpx (FastAPI's TestClient uses it),
-# argon2-cffi (password hashing) and python-multipart (file uploads on the Data import page).
+# argon2-cffi (password hashing), python-multipart (file uploads on the Data import page) and psycopg (Postgres,
+# used only when DATABASE_URL is set: Phase 13, docs/DEPLOY_FREE.md).
 # Install with: .\.venv\Scripts\python.exe -m pip install -r requirements-api.txt
 -r requirements.txt
 fastapi==0.121.3
@@ -8,3 +9,4 @@ uvicorn==0.38.0
 httpx==0.28.1
 argon2-cffi==25.1.0
 python-multipart==0.0.20
+psycopg[binary]==3.3.9
