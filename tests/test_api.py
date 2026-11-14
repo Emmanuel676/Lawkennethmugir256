@@ -223,7 +223,8 @@ def test_follow_up_filters(client):
 # anything; every data route stays GET-only, and nothing can write to the demo (tests/test_api_auth.py).
 WRITE_ROUTES = {("POST", "/api/auth/login"), ("POST", "/api/auth/logout"), ("POST", "/api/users"),
                 ("PATCH", "/api/users/{user_id}"), ("POST", "/api/users/{user_id}/password"),
-                ("DELETE", "/api/datasets/{slug}"), ("POST", "/api/imports/check"), ("POST", "/api/imports")}
+                ("DELETE", "/api/datasets/{slug}"), ("POST", "/api/imports/check"), ("POST", "/api/imports"),
+                ("POST", "/api/review/batch"), ("POST", "/api/review/label")}  # Phase 12C: Review labels
 
 
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])

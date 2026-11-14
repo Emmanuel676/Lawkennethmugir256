@@ -95,7 +95,8 @@ export interface StatusShare { key: string; label: string; loans: number; share:
 
 export interface Repayments {
   dataset: DatasetInfo; trust_line: string; owed_note: string; prompt: string; lump: boolean; loans: number;
-  statuses: StatusShare[]; owed_unpaid: Money; owed_follow_up: Money; grace_days: number;
+  statuses: StatusShare[]; owed_unpaid: Money; owed_follow_up: Money; owed_not_yet_due: Money;
+  owed_past_due: Money; owed_in_grace: Money; grace_days: number;
   not_paying_after_days: number; min_loans_to_compare: number;
   ageing: { bucket: string; loans: number; owed: Money }[];
   lender_mix: { lender_id: string; name: string; loans: number; comparable: boolean;
@@ -222,3 +223,40 @@ export interface AuditEntry {
   detail: Record<string, unknown>;
 }
 export interface AuditPage { total: number; page: number; page_size: number; pages: number; entries: AuditEntry[] }
+
+
+// --- Phase 12C: Guided Demo, About, Export, Review labels -------------------------------------------------------
+
+export interface GuidedCase {
+  step: number; key: string; title: string; kind: "borrower" | "lender"; id: string; say: string;
+  counts?: { messages: number; abusive: number; abusive_late_night: number; abusive_third_party: number };
+}
+export interface GuidedDemo { available: boolean; reason: string; opening: string[]; cases: GuidedCase[]; missing: string[] }
+
+export interface About {
+  product: { name: string; tagline: string }; dataset: DatasetInfo;
+  signals: { key: string; signal: string; measures: string; full_at: number; weight: number }[];
+  bands: { medium: number; high: number }; cycling_rule: { min_events: number } | null;
+  classes: { key: string; label: string; description: string; abusive: boolean }[];
+  label_note: string; classifier: string; human_share: number; min_lender_messages: number; confidence: number;
+  review_line: string;
+}
+
+export interface ExportSummary {
+  dataset: DatasetInfo; notice: string; flagged_borrowers: number; lenders: number; follow_up_borrowers: number;
+  classifier: string;
+}
+
+export interface ReviewSummary {
+  available: boolean; reason?: string;
+  messages: number; reviewed: number; share_reviewed: number;
+  per_batch: Record<string, number>; per_class: Record<string, number>;
+  accuracy: { ok: boolean; sentence: string; n: number; accuracy: number | null; low: number | null; high: number | null;
+              per_class: { class: string; checked: number; model_right: number; recall: number | null;
+                           low: number | null; high: number | null }[] };
+  classes: string[]; kinds: Record<string, string>; default_size: number; show_model_label: boolean;
+}
+export interface ReviewMessage {
+  message_id: string; text: string; sent_at: string; recipient_type: string; lender: string;
+  model_label: string | null; model_confidence: number | null;
+}

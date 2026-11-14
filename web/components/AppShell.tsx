@@ -20,10 +20,16 @@ const MAIN: NavItem[] = [
   { href: "/repayments", label: "Repayments",
     icon: "M3 7h18v10H3V7Zm9 2.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM6 10v4m12-4v4" },
 ];
+const PRESENT: NavItem[] = [
+  { href: "/guided-demo", label: "Guided demo", icon: "M5 3l14 9-14 9V3Z" },
+  { href: "/export", label: "Export", icon: "M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" },
+  { href: "/about", label: "About", icon: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-14h.01M11 12h1v5h1" },
+];
 const MANAGE: NavItem[] = [
   { href: "/datasets", label: "Datasets", role: "viewer",
     icon: "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Zm0 0v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" },
   { href: "/import", label: "Import data", role: "importer", icon: "M12 3v12m0-12-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" },
+  { href: "/review", label: "Review labels", role: "importer", icon: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" },
   { href: "/users", label: "Users", role: "admin",
     icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" },
   { href: "/audit", label: "Audit log", role: "admin", icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" },
@@ -186,6 +192,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <nav aria-label="Main" className="flex-1 overflow-y-auto px-3">
           <NavList items={MAIN} pathname={pathname} />
+          <p className="mb-1 mt-5 px-3 text-xs font-semibold uppercase tracking-wide text-muted">Present</p>
+          <NavList items={PRESENT} pathname={pathname} />
           {manage.length > 0 && (
             <>
               <p className="mb-1 mt-5 px-3 text-xs font-semibold uppercase tracking-wide text-muted">Manage</p>
@@ -234,8 +242,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       {more && (
         <div id="more-menu" className="fixed inset-x-0 bottom-[60px] z-40 max-h-[70vh] overflow-y-auto border-t border-line bg-surface px-4 pb-4 pt-3 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] lg:hidden">
           <div className="mb-3"><DatasetSwitcher id="dataset-phone" /></div>
-          {manage.length > 0 ? <NavList items={manage} pathname={pathname} onPick={() => setMore(false)} />
-            : <p className="text-sm text-muted">Sign in to see shared datasets and, depending on your role, import data.</p>}
+          <NavList items={PRESENT} pathname={pathname} onPick={() => setMore(false)} />
+          {manage.length > 0 ? <div className="mt-2 border-t border-line pt-2"><NavList items={manage} pathname={pathname} onPick={() => setMore(false)} /></div>
+            : <p className="mt-2 text-sm text-muted">Sign in to see shared datasets and, depending on your role, import data.</p>}
         </div>
       )}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface lg:hidden">
@@ -256,7 +265,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <li>
             <button type="button" aria-expanded={more} aria-controls="more-menu" onClick={() => setMore((v) => !v)}
                     className={`flex w-full flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
-                      more || manage.some((m) => isActive(pathname, m.href)) ? "text-accent" : "text-muted"}`}>
+                      more || [...manage, ...PRESENT].some((m) => isActive(pathname, m.href)) ? "text-accent" : "text-muted"}`}>
               <NavIcon d="M4 6h16M4 12h16M4 18h16" />
               More
             </button>

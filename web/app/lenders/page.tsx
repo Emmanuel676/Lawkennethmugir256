@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { LenderIntervalChart } from "@/components/charts";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -59,9 +60,16 @@ function LenderPanel({ id }: { id: string }) {
   );
 }
 
-export default function LendersPage() {
+function LendersInner() {
   const { data, error, loading, reload } = useDatasetApi<Lenders>("/api/lenders");
   const [picked, setPicked] = useState<string>("");
+  const wanted = useSearchParams().get("lender");
+  useEffect(() => {
+    if (wanted && data && [...data.ranked, ...data.unranked].some((r) => r.lender_id === wanted)) {
+      setPicked(wanted);
+      setTimeout(() => document.getElementById("one")?.scrollIntoView({ block: "start" }), 50);
+    }
+  }, [wanted, data]);
   const level = data ? `${Math.round(data.confidence * 100)}%` : "95%";
   const all = data ? [...data.ranked, ...data.unranked] : [];
 
@@ -125,5 +133,13 @@ export default function LendersPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function LendersPage() {
+  return (
+    <Suspense fallback={<LoadingBlock rows={8} label="Loading lenders" />}>
+      <LendersInner />
+    </Suspense>
   );
 }

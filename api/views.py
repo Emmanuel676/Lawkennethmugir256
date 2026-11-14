@@ -13,7 +13,8 @@ import pandas as pd
 
 from src import repayments as rp
 from src.config import RISK_SIGNALS
-from src.dashboard_data import (BANDS, CLASS_DESCRIPTIONS, REVIEW_LINE, SIGNAL_DESCRIPTIONS, SORT_OPTIONS,
+from src.dashboard_data import (BANDS, REVIEW_LINE, SIGNAL_DESCRIPTIONS, SORT_OPTIONS, featured_cases,
+                                flagged_borrowers_csv, lender_comparison_csv, signal_weights,
                                 band_distribution, borrower_detail, coverage_sentence, filter_borrowers,
                                 lender_detail, overview_kpis, page_count, page_slice, ranked_lenders,
                                 sort_borrowers, top_borrowers, unranked_lenders)
@@ -26,6 +27,18 @@ OWED_NOTE = "The total owed includes loans that are not yet due."
 BAND_LABELS = {"high": "High", "medium": "Medium", "low": "Low"}
 CLASS_LABELS = {"normal": "Normal", "firm_pressure": "Firm pressure", "threat": "Threat",
                 "shaming_third_party": "Shaming or third party"}
+# What the MODEL labels, in plain words. Deliberately not a legal judgement: the web app never says a message is
+# something a lender "cannot lawfully" do (src.dashboard_data.CLASS_DESCRIPTIONS, used by Streamlit, is unchanged).
+CLASS_TEXT = {
+    "normal": "A neutral reminder, before or after the due date.",
+    "firm_pressure": "Insistent wording about the debt: late fees, the credit record, or passing the loan to a "
+                     "recovery team.",
+    "threat": "Wording that threatens harm or serious consequences to the borrower, including veiled threats.",
+    "shaming_third_party": "Wording that exposes the debt to other people or contacts the borrower's contacts, or "
+                           "shames the borrower directly.",
+}
+LABEL_NOTE = ("These are the model's labels for the wording of a message. A label is a guess about the text, not a "
+              "legal finding about the lender.")
 GLOSSARY = {
     "overlap_score": ("Overlap score: 0 to 100 points from five signals (open lenders, debt to income, arrears, "
                       "cycling, loan velocity). A high score means a person should look; it is not proof of "
@@ -89,7 +102,7 @@ def meta(snap: Snapshot) -> dict:
         "presentation_mode": snap.kind == "demo",
         "read_only": True,
         "bands": [{**_band(b), "min_score": float(cfg["risk"]["bands"].get(b, 0))} for b in BANDS],
-        "message_classes": [{"key": k, "label": CLASS_LABELS[k], "description": CLASS_DESCRIPTIONS[k],
+        "message_classes": [{"key": k, "label": CLASS_LABELS[k], "description": CLASS_TEXT[k],
                              "abusive": k in cfg["lender_comparison"]["abusive_classes"]} for k in CLASS_LABELS],
         "glossary": glossary,
     }
@@ -248,6 +261,14 @@ def lender(snap: Snapshot, lender_id: str) -> dict:
 
 # --- repayments ------------------------------------------------------------------------------------
 
+def _ageing_owed(ageing: pd.DataFrame, part: str) -> int:
+    """Owed on unpaid loans from the engine's ageing table: 'current' (the not-yet-due bucket), 'past_due' (every
+    other bucket) or 'grace' (only the first past-due bucket, inside the grace days)."""
+    labels = ageing["bucket"].tolist()
+    chosen = {"current": labels[:1], "past_due": labels[1:], "grace": labels[1:2]}[part]
+    return int(ageing.loc[ageing["bucket"].isin(chosen), "owed"].sum())
+
+
 def repayments(snap: Snapshot) -> dict:
     cfg, result = snap.cfg, snap.repayments
     head, settings = result["headline"], cfg["repayments"]
@@ -264,6 +285,10 @@ def repayments(snap: Snapshot) -> dict:
                       "follow_up": s in rp.FOLLOW_UP} for s in rp.STATUSES],
         "owed_unpaid": money(head["owed_unpaid"], cfg),
         "owed_follow_up": money(head["owed_follow_up"], cfg),
+        # The total owed is NOT arrears: split it by the engine's own ageing buckets ('current' = not yet due).
+        "owed_not_yet_due": money(_ageing_owed(result["ageing"], part="current"), cfg),
+        "owed_past_due": money(_ageing_owed(result["ageing"], part="past_due"), cfg),
+        "owed_in_grace": money(_ageing_owed(result["ageing"], part="grace"), cfg),
         "grace_days": int(settings["grace_days"]),
         "not_paying_after_days": int(settings["not_paying_after_days"]),
         "min_loans_to_compare": int(settings["min_loans_to_compare"]),
@@ -327,3 +352,91 @@ def follow_up_csv(snap: Snapshot, lenders: str | None = None, statuses: str | No
     """The same CSV the Streamlit download gives: first line '#' with the dataset notice and the prompt wording."""
     rows = _follow_up_rows(snap, lenders, statuses, bands, sort, order)
     return rp.follow_up_csv(rows, snap.notice)
+
+
+# --- Phase 12C: Guided Demo, About, Export --------------------------------------------------------------------------
+
+def _harassment_sentence(snap: Snapshot, borrower_id: str) -> tuple[str, dict]:
+    """The Guided Demo's harassed-borrower sentence, computed from the engine's message labels so it cannot be
+    misread: how many messages were labelled abusive, and how many OF THOSE were sent late at night or to other
+    people. (src.dashboard_data.featured_cases counts late-night and third-party messages over ALL messages.)"""
+    cfg = snap.cfg
+    own = snap.data.messages[snap.data.messages["borrower_id"] == borrower_id]
+    abusive = own["predicted_class"].isin(cfg["lender_comparison"]["abusive_classes"])
+    counts = {"messages": int(len(own)), "abusive": int(abusive.sum()),
+              "abusive_late_night": int((abusive & own["late_night"].astype(bool)).sum()),
+              "abusive_third_party": int((abusive & own["third_party"].astype(bool)).sum())}
+    say = (f"Borrower {borrower_id} received {counts['messages']} collection messages, and "
+           f"{counts['abusive']} of them were labelled abusive. Of those {counts['abusive']}, "
+           f"{counts['abusive_late_night']} were sent late at night and {counts['abusive_third_party']} were sent to "
+           "other people instead of the borrower. Read them on the borrower's page.")
+    return say, counts
+
+
+def guided_demo(snap: Snapshot) -> dict:
+    """The six featured cases of the Streamlit Guided Demo (same rules, same wording, from featured_cases), with
+    the harassed-borrower sentence made exact. Written for the demo: an imported dataset gets an explanation."""
+    if snap.kind != "demo":
+        return {"available": False, "cases": [], "missing": [], "opening": [],
+                "reason": "The guided demo is written for the built-in demo dataset. Switch to the demo to present it."}
+    featured = featured_cases(snap.data, snap.cfg)
+    cases = []
+    for case in featured["cases"]:
+        item = {k: case[k] for k in ("step", "key", "title", "kind", "id", "say")}
+        if case["key"] == "harassed":
+            item["say"], item["counts"] = _harassment_sentence(snap, case["id"])
+        cases.append(item)
+    return {"available": True, "cases": cases, "missing": featured["missing"], "reason": "",
+            "opening": ["The data is synthetic.",
+                        "The accuracy figures are optimistic, because the data was built to be separable.",
+                        "A person decides: the tool only points at files worth reading."]}
+
+
+def about(snap: Snapshot) -> dict:
+    cfg = snap.cfg
+    risk = cfg["risk"]
+    weights = signal_weights(cfg)
+    return {
+        "product": {"name": cfg["project"]["name"], "tagline": cfg["project"]["tagline"]},
+        "dataset": dataset_info(snap),
+        "signals": [{"key": key, "signal": row["Signal"], "measures": row["What it measures"],
+                     "full_at": float(row["Full points at"]), "weight": float(row["Weight"])}
+                    for key, (_, row) in zip(RISK_SIGNALS, weights.iterrows())],
+        "bands": {"medium": float(risk["bands"]["medium"]), "high": float(risk["bands"]["high"])},
+        "cycling_rule": ({"min_events": int(risk["cycling_minimum_events"])}
+                         if risk.get("cycling_forces_minimum_band") else None),
+        "classes": [{"key": k, "label": CLASS_LABELS[k], "description": CLASS_TEXT[k],
+                     "abusive": k in cfg["lender_comparison"]["abusive_classes"]} for k in CLASS_LABELS],
+        "label_note": LABEL_NOTE,
+        "classifier": snap.data.classifier,
+        "human_share": float(snap.data.human_share),
+        "min_lender_messages": int(cfg["generator"]["min_lender_messages"]),
+        "confidence": float(cfg["lender_comparison"]["confidence"]),
+        "review_line": REVIEW_LINE,
+    }
+
+
+def _export_borrowers(snap: Snapshot, bands: str | None, min_abusive: int) -> pd.DataFrame:
+    band_list = _split(bands) if bands is not None else ["high", "medium"]
+    if any(b not in BANDS for b in band_list):
+        raise BadRequest("bands must be a comma-separated list of high, medium, low.")
+    return filter_borrowers(snap.data.borrowers, bands=band_list, min_abusive_messages=int(min_abusive))
+
+
+def export_summary(snap: Snapshot, bands: str | None = None, min_abusive: int = 0) -> dict:
+    rows = _export_borrowers(snap, bands, min_abusive)
+    return {"dataset": dataset_info(snap), "notice": snap.notice, "flagged_borrowers": int(len(rows)),
+            "lenders": int(len(snap.data.lenders)),
+            "follow_up_borrowers": int(len(rp.follow_up(snap.repayments["rollup"]))),
+            "classifier": snap.data.classifier}
+
+
+def flagged_csv(snap: Snapshot, bands: str | None = None, min_abusive: int = 0) -> bytes:
+    """The Streamlit Export page's flagged-borrowers file (same function, same '#' notice line)."""
+    return flagged_borrowers_csv(_export_borrowers(snap, bands, min_abusive), snap.notice)
+
+
+def lenders_csv(snap: Snapshot) -> bytes:
+    """The Streamlit Export page's lender comparison file (same function, same '#' notice line)."""
+    data = snap.data
+    return lender_comparison_csv(data.lenders, data.classifier, snap.notice, data.human_share)

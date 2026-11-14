@@ -32,6 +32,7 @@ from api.audit import AuditLog
 from api.data_source import DataNotReady, DataSource, DataSources, DemoDataSource, Snapshot, UnknownDataset
 from api.deps import Public, Services, dataset_reader
 from api.routes import router as phase12b_router, unknown_dataset_handler
+from api.routes_12c import router as phase12c_router
 from api.security import load_secret
 from api.settings import Settings, load_settings
 from api.store import LocalFolderFiles, SqliteCatalog
@@ -176,4 +177,5 @@ def create_app(source: DataSource | None = None, settings: Settings | None = Non
                         headers={"Content-Disposition": 'attachment; filename="repayment_follow_up.csv"'})
 
     app.include_router(phase12b_router)
+    app.include_router(phase12c_router)
     return app

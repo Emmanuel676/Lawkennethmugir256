@@ -39,6 +39,7 @@ function MessageCard({ m }: { m: Message }) {
           <Pill tone={m.label.abusive ? "rose" : "slate"}>
             {m.label.abusive ? `Labelled abusive: ${m.label.label}` : `Labelled ${m.label.label.toLowerCase()}`}
           </Pill>
+          {m.label_from === "human" && <Pill tone="teal">Checked by a person</Pill>}
           {m.late_night && <Pill tone="amber">Late night</Pill>}
           {m.third_party && <Pill tone="amber">Sent to a third party</Pill>}
         </span>

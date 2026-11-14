@@ -23,6 +23,7 @@ ACTIONS = {
     "user_enable": "Enabled a user",
     "password_reset": "Reset a user's password",
     "login_locked": "Sign-in locked after too many wrong passwords",
+    "review_label": "Checked a message label",
 }
 
 

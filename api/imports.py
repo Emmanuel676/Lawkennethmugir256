@@ -65,6 +65,16 @@ class Outcome:
         return body
 
 
+REVIEW_PAGE_STREAMLIT = "Check a sample on the Review page before relying on the labels."
+REVIEW_PAGE_WEB = "Check a sample on the Review labels page before relying on the labels."
+
+
+def web_message(message: str) -> str:
+    """The importer's own success message (src.import_data, unchanged) with its pointer to the Streamlit Review
+    page replaced by the web app's Review labels page."""
+    return message.replace(REVIEW_PAGE_STREAMLIT, REVIEW_PAGE_WEB)
+
+
 def template_xlsx(cfg: dict) -> bytes:
     return build_xlsx_template(cfg)
 
@@ -167,5 +177,5 @@ def run_import(files: dict[str, bytes], file_type: str, *, engine_cfg: dict, mod
                                       as_of_date=result.report.as_of_date, counts=counts))
         else:
             catalog.touch(slug, counts, result.report.as_of_date)
-        return Outcome("imported", report=result.report, message=result.message, dataset=slug,
+        return Outcome("imported", report=result.report, message=web_message(result.message), dataset=slug,
                        already_known=int(result.report.skipped_existing_borrowers))

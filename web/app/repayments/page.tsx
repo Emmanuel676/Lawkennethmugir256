@@ -142,10 +142,45 @@ export default function RepaymentsPage() {
                      value={pct(share("late_within_grace")?.share)} detail={`${int(share("late_within_grace")?.loans)} loans`} />
             <KpiTile accent="rose" label="Not paying" value={pct(share("not_paying")?.share)}
                      detail={`${int(share("not_paying")?.loans)} loans`} />
-            <KpiTile accent="navy" label="Owed, unpaid loans" value={data.owed_unpaid.compact}
-                     detail={<>Includes loans not yet due. {data.owed_follow_up.compact} is on loans not paying or overdue.</>}
-                     help={`Exact: ${data.owed_unpaid.exact}`} />
+            <KpiTile accent="navy" label="Owed, past due" value={data.owed_past_due.compact}
+                     detail={<>{data.owed_follow_up.compact} on loans not paying or overdue; {data.owed_in_grace.compact} still in the grace days.</>}
+                     help={`Exact: ${data.owed_past_due.exact}`} />
           </div>
+
+          {/* The total owed is not arrears: most of it is on loans that are not due yet. */}
+          <Card id="owed" title="What is owed on unpaid loans"
+                subtitle="The total includes loans that are not yet due. Only the past-due part is late.">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted">Past due</p>
+                <p className="tabular text-xl font-semibold text-ink">{data.owed_past_due.compact}</p>
+                <p className="text-xs text-muted">{data.owed_past_due.exact}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Not yet due</p>
+                <p className="tabular text-xl font-semibold text-ink">{data.owed_not_yet_due.compact}</p>
+                <p className="text-xs text-muted">{data.owed_not_yet_due.exact}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Total owed (both)</p>
+                <p className="tabular text-xl font-semibold text-ink">{data.owed_unpaid.compact}</p>
+                <p className="text-xs text-muted">{data.owed_unpaid.exact}</p>
+              </div>
+            </div>
+            {(data.owed_unpaid.amount ?? 0) > 0 && (
+              <div className="mt-4" role="img"
+                   aria-label={`Of ${data.owed_unpaid.exact} owed, ${data.owed_past_due.exact} is past due and ${data.owed_not_yet_due.exact} is not yet due.`}>
+                <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
+                  <div className="h-full bg-amber" style={{ width: `${(100 * (data.owed_past_due.amount ?? 0)) / (data.owed_unpaid.amount ?? 1)}%` }} />
+                  <div className="h-full bg-[var(--series)]" style={{ width: `${(100 * (data.owed_not_yet_due.amount ?? 0)) / (data.owed_unpaid.amount ?? 1)}%`, marginLeft: 2 }} />
+                </div>
+                <p className="mt-2 flex flex-wrap gap-4 text-xs text-muted">
+                  <span><span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-amber align-middle" />Past due {pct((data.owed_past_due.amount ?? 0) / (data.owed_unpaid.amount ?? 1))}</span>
+                  <span><span aria-hidden="true" className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[var(--series)] align-middle" />Not yet due {pct((data.owed_not_yet_due.amount ?? 0) / (data.owed_unpaid.amount ?? 1))}</span>
+                </p>
+              </div>
+            )}
+          </Card>
 
           {data.lump && (
             <p className="text-sm text-muted">In this dataset every loan was repaid in one payment, so &apos;overdue but paying&apos; is

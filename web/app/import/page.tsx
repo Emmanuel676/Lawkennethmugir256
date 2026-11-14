@@ -289,6 +289,8 @@ function ImportInner() {
                       className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink">Show this dataset</button>
               <button type="button" onClick={() => { setMode("add"); setTarget(done.dataset); setDone(undefined); setPermission(false); }}
                       className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2">Add another lender&apos;s files</button>
+              <button type="button" onClick={() => { setDataset(done.dataset); router.push("/review"); }}
+                      className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2">Review labels</button>
               <Link href="/datasets" className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2">All datasets</Link>
             </div>
           </div>
