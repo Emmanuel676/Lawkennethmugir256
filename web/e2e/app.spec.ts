@@ -1,4 +1,4 @@
-// Browser tests (Phase 12C, extended in Phase 14): the landing page at phone and desktop width in both themes; keyboard
+// Browser tests (Phase 12C, extended in Phase 14 and 14c): the landing page at phone and desktop width in both themes; keyboard
 // paths through sign-in, Request access with Admin approval, import and delete; phone width; both themes; and an
 // automated accessibility check (axe-core, WCAG 2 A and AA rules) that fails on any serious or critical problem.
 import { existsSync } from "node:fs";
@@ -69,7 +69,7 @@ for (const theme of ["light", "dark"] as const) {
       // The product preview reads its numbers from the API: the full frame on a desktop, a simpler card on a phone.
       const preview = page.getByTestId(size.name === "phone" ? "hero-preview-compact" : "hero-preview");
       await expect(preview).toBeVisible();
-      await expect(preview.getByText("Borrowers scored")).toBeVisible();
+      await expect(preview.locator("[data-tile]").filter({ hasText: "Borrowers" })).toBeVisible();
       await expect(preview.getByText("5,000").first()).toBeVisible();
       if (size.name === "desktop") await expect(preview.getByText("Highest-scoring borrowers")).toBeVisible();
       // The stats band: the first two figures come from the API.
@@ -83,6 +83,96 @@ for (const theme of ["light", "dark"] as const) {
       await expectAccessible(page, `landing page (${size.name}, ${theme})`);
     });
   }
+}
+
+// --- The landing page's product preview never clips (Phase 14c) -------------------------------------------------------
+// Real screens at common widths, plus a 1920 px screen at 125% and 150% browser zoom (the window is then 1536 and
+// 1280 CSS pixels wide, drawn at 1.25 and 1.5 device pixels per CSS pixel). In every one, nothing inside the preview may
+// overflow its own box, leave the frame or the window, end in an ellipsis or wrap onto a second line, and the page may
+// not scroll sideways. Set E2E_SHOTS to a folder to save a screenshot of each case.
+
+/** Everything wrong with the preview's layout: clipping, overflow, ellipses, wrapped short text, sideways scroll.
+ *  Runs inside the page (Playwright sends its source), so it must not use anything from this file. */
+function previewProblems(id: string): string[] {
+  const root = document.querySelector(`[data-testid="${id}"]`)!;
+  const frame = root.getBoundingClientRect();
+  const found: string[] = [];
+  const name = (el: Element) => `${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 30)}"`;
+  if (frame.left < 0 || frame.right > window.innerWidth) found.push(`frame ${frame.left}-${frame.right} leaves the window`);
+  if (document.documentElement.scrollWidth > window.innerWidth) found.push("the page scrolls sideways");
+  for (const el of Array.from(root.querySelectorAll("*"))) {
+    const style = getComputedStyle(el);
+    if (style.display === "none" || el.closest(".sr-only")) continue;
+    const box = el.getBoundingClientRect();
+    if (box.width === 0 && box.height === 0) continue;
+    if (box.left < frame.left - 0.5 || box.right > frame.right + 0.5) found.push(`${name(el)} leaves the frame`);
+    if (el instanceof HTMLElement && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1) {
+      found.push(`${name(el)} overflows its box (${el.scrollWidth} > ${el.clientWidth})`);
+    }
+    if (style.textOverflow === "ellipsis") found.push(`${name(el)} uses an ellipsis`);
+    // Short text (every child inline) must stay on one line.
+    const inline = Array.from(el.children).every((c) => getComputedStyle(c).display.startsWith("inline"));
+    if (inline && (el.textContent ?? "").trim() && !style.display.includes("flex") && !style.display.includes("grid")) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const tops = Array.from(range.getClientRects()).map((r) => r.top).sort((a, b) => a - b);
+      const lines = tops.filter((t, i) => i === 0 || t - tops[i - 1] > 6).length;
+      if (lines > 1 && el.tagName !== "UL") found.push(`${name(el)} wraps onto ${lines} lines`);
+    }
+  }
+  return found;
+}
+
+const PREVIEW_SIZES = [
+  { label: "1280", width: 1280, height: 800, scale: 1 },
+  { label: "1366", width: 1366, height: 768, scale: 1 },
+  { label: "1440", width: 1440, height: 900, scale: 1 },
+  { label: "1536", width: 1536, height: 864, scale: 1 },
+  { label: "1920", width: 1920, height: 1080, scale: 1 },
+  { label: "1920_zoom125", width: 1536, height: 864, scale: 1.25 },
+  { label: "1920_zoom150", width: 1280, height: 720, scale: 1.5 },
+  { label: "phone", width: 390, height: 844, scale: 3 },
+];
+
+for (const theme of ["light", "dark"] as const) {
+  test(`the landing preview fits at every width, ${theme} theme`, async ({ browser, baseURL }) => {
+    test.setTimeout(240_000);
+    for (const size of PREVIEW_SIZES) {
+      const context = await browser.newContext({ baseURL, viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.scale });
+      const page = await context.newPage();
+      await page.goto(`/?theme=${theme}`);
+      const testId = size.width < 1024 ? "hero-preview-compact" : "hero-preview";
+      const preview = page.getByTestId(testId);
+      await expect(preview.getByText("5,000", { exact: true }).first()).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(1500);   // let the count-up tiles reach their final values
+
+      const problems = await page.evaluate(previewProblems, testId);
+      // The check itself can fail: a clipped label and a wrapped label, put in for a moment, must both be reported.
+      if (size.label === "1440") {
+        // (Separate steps, not eval inside the page, so the site's content security policy is never in the way.)
+        await page.evaluate((id) => {
+          const probe = document.createElement("div");
+          probe.id = "e2e-probe";
+          probe.innerHTML = '<p style="width:40px;overflow:hidden;white-space:nowrap">Owed by high band</p>' +
+                            '<p style="width:40px">Owed by high band</p>';
+          document.querySelector(`[data-testid="${id}"]`)!.appendChild(probe);
+        }, testId);
+        const caught = await page.evaluate(previewProblems, testId);
+        await page.evaluate(() => document.getElementById("e2e-probe")!.remove());
+        expect(caught.some((p) => p.includes("overflows its box")), "the overflow check can fail").toBe(true);
+        expect(caught.some((p) => p.includes("wraps onto")), "the wrap check can fail").toBe(true);
+      }
+      expect(problems, `the preview at ${size.label} (${theme})`).toEqual([]);
+
+      if (process.env.E2E_SHOTS) {
+        const file = path.join(process.env.E2E_SHOTS, `14c_landing_${size.label}_${theme}.png`);
+        if (size.width < 1024) await page.screenshot({ path: file, fullPage: true, clip: { x: 0, y: 0, width: size.width, height: 1450 } });
+        else await page.screenshot({ path: file });
+      }
+      await context.close();
+    }
+  });
 }
 
 // --- Keyboard paths ----------------------------------------------------------------------------------------------------

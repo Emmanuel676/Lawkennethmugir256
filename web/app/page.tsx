@@ -47,25 +47,30 @@ const PREVIEW_MANAGE: { label: string; icon: LucideIcon }[] = [
   { label: "Users", icon: Users },
 ];
 
+// Every size decision below follows the preview's OWN width (CSS container queries), not the window's, so nothing in it
+// is ever clipped, cut with an ellipsis or wrapped: tiles go 2 x 2 when four in a row would be narrower than 150 px,
+// the chart and the list stack when side by side would be too tight, and the list drops its lenders column first.
 function tilesFrom(data: Overview) {
   const k = data.kpis;
   return [
-    { label: "Borrowers scored", value: int(k.borrowers_scored), note: `${int(k.lenders_ranked + k.lenders_unranked)} lenders`, edge: "bg-navy dark:bg-slate-300" },
-    { label: "High band", value: int(k.band_counts.high), note: `${pct(k.band_shares.high)} of borrowers`, edge: "bg-[var(--band-high)]" },
-    { label: "Medium band", value: int(k.band_counts.medium), note: `${pct(k.band_shares.medium)} of borrowers`, edge: "bg-[var(--band-medium)]" },
-    { label: "Owed, high band", value: k.owed_by_high_band.compact, note: "on unpaid loans", edge: "bg-[var(--band-low)]" },
+    { label: "Borrowers", value: int(k.borrowers_scored), note: `${int(k.lenders_ranked + k.lenders_unranked)} lenders`, edge: "bg-navy dark:bg-slate-300" },
+    { label: "High band", value: int(k.band_counts.high), note: `${pct(k.band_shares.high)} of all`, edge: "bg-[var(--band-high)]" },
+    { label: "Medium band", value: int(k.band_counts.medium), note: `${pct(k.band_shares.medium)} of all`, edge: "bg-[var(--band-medium)]" },
+    { label: "Owed by high band", value: k.owed_by_high_band.compact, note: "unpaid loans", edge: "bg-[var(--band-low)]" },
   ];
 }
 
-function PreviewTiles({ data, compact = false }: { data: Overview; compact?: boolean }) {
+function PreviewTiles({ data }: { data: Overview }) {
   return (
-    <div className={cn("grid gap-2.5", compact ? "grid-cols-2" : "grid-cols-4")}>
+    <div className="grid grid-cols-2 gap-2.5 @min-[640px]/preview:grid-cols-4">
       {tilesFrom(data).map((t) => (
-        <div key={t.label} className="relative overflow-hidden rounded-xl border border-line bg-surface p-3">
-          <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-1", t.edge)} />
-          <p className="truncate text-[11px] font-medium text-muted">{t.label}</p>
-          <p className="tabular mt-0.5 text-lg font-semibold leading-tight tracking-tight text-ink"><CountUp value={t.value} /></p>
-          <p className="truncate text-[10.5px] text-muted">{t.note}</p>
+        <div key={t.label} data-tile className="relative min-w-0 rounded-xl border border-line bg-surface py-3 pl-3.5 pr-3">
+          <span aria-hidden="true" className={cn("absolute inset-y-2 left-0 w-1 rounded-r-full", t.edge)} />
+          <p className="whitespace-nowrap text-[11px] font-medium text-muted">{t.label}</p>
+          <p className="tabular mt-0.5 whitespace-nowrap text-[17px] font-semibold leading-tight tracking-tight text-ink @min-[400px]/preview:text-lg">
+            <CountUp value={t.value} />
+          </p>
+          <p className="whitespace-nowrap text-[10.5px] text-muted">{t.note}</p>
         </div>
       ))}
     </div>
@@ -77,20 +82,20 @@ function PreviewBands({ data }: { data: Overview }) {
   const colour: Record<string, string> = { high: "bg-[var(--band-high)]", medium: "bg-[var(--band-medium)]", low: "bg-[var(--band-low)]" };
   const shape: Record<string, string> = { high: "▲", medium: "◆", low: "●" };
   return (
-    <div className="rounded-xl border border-line bg-surface p-3.5" role="img"
+    <div className="min-w-0 rounded-xl border border-line bg-surface p-3.5" role="img"
          aria-label={`Borrowers per risk band: ${data.bands.map((b) => `${b.label} ${int(b.borrowers)}`).join(", ")}.`}>
-      <p className="text-xs font-semibold text-ink">Borrowers per risk band</p>
-      <div className="mt-3 flex h-28 items-end gap-4 border-b border-line px-1">
+      <p className="whitespace-nowrap text-xs font-semibold text-ink">Borrowers per risk band</p>
+      <div className="mt-3 flex h-28 items-end gap-3 border-b border-line px-1">
         {data.bands.map((b) => (
           <div key={b.key} className="flex flex-1 flex-col items-center justify-end gap-1">
-            <span className="tabular text-[10.5px] font-semibold text-ink">{int(b.borrowers)}</span>
+            <span className="tabular whitespace-nowrap text-[10.5px] font-semibold text-ink">{int(b.borrowers)}</span>
             <div className={cn("w-full max-w-10 rounded-t-md", colour[b.key])} style={{ height: `${Math.max(4, (88 * b.borrowers) / max)}px` }} />
           </div>
         ))}
       </div>
-      <div className="mt-1.5 flex gap-4 px-1">
+      <div className="mt-1.5 flex gap-3 px-1">
         {data.bands.map((b) => (
-          <span key={b.key} className="flex-1 text-center text-[10.5px] text-muted"><span aria-hidden="true">{shape[b.key]} </span>{b.label}</span>
+          <span key={b.key} className="flex-1 whitespace-nowrap text-center text-[10.5px] text-muted"><span aria-hidden="true">{shape[b.key]} </span>{b.label}</span>
         ))}
       </div>
     </div>
@@ -99,17 +104,18 @@ function PreviewBands({ data }: { data: Overview }) {
 
 function PreviewTop({ data }: { data: Overview }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-3.5">
-      <p className="text-xs font-semibold text-ink">Highest-scoring borrowers</p>
+    <div className="@container/top min-w-0 rounded-xl border border-line bg-surface p-3.5">
+      <p className="whitespace-nowrap text-xs font-semibold text-ink">Highest-scoring borrowers</p>
       <ul className="mt-2 divide-y divide-line/70">
         {data.top_borrowers.slice(0, 4).map((b) => (
-          <li key={b.borrower_id} className="flex items-center justify-between gap-2 py-1.5 text-[11.5px]">
+          <li key={b.borrower_id} className="flex items-center justify-between gap-2 whitespace-nowrap py-1.5 text-[11.5px]">
             <span className="font-medium text-accent">{b.borrower_id}</span>
             <span className="tabular text-ink-2">{score(b.score)}</span>
             <span className="rounded-full bg-[#ffe4e6] px-1.5 py-px text-[10px] font-semibold text-[#9f1239] dark:bg-[#4c0519] dark:text-[#fecdd3]">
               <span aria-hidden="true">▲ </span>{b.band.label}
             </span>
-            <span className="tabular text-muted">{b.open_lenders} lenders</span>
+            {/* The first thing to go when space is short: never cut, only hidden. */}
+            <span data-lenders className="tabular hidden text-muted @min-[250px]/top:inline">{b.open_lenders} lenders</span>
           </li>
         ))}
       </ul>
@@ -121,7 +127,7 @@ function PreviewLoading({ compact = false }: { compact?: boolean }) {
   return (
     <div role="status" className="space-y-2.5">
       <span className="sr-only">Loading the preview…</span>
-      <div className={cn("grid gap-2.5", compact ? "grid-cols-2" : "grid-cols-4")}>
+      <div className="grid grid-cols-2 gap-2.5 @min-[640px]/preview:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-[74px] rounded-xl" />)}
       </div>
       <Skeleton className="h-[170px] rounded-xl" />
@@ -139,46 +145,48 @@ function PreviewFallback() {
   );
 }
 
-/** Desktop: a framed mini-dashboard with a sidebar, tiles, bands and the top borrowers, running off the right edge. */
+const FRAME_SHADOW =
+  "shadow-[0_2px_6px_rgba(15,23,42,0.05),0_28px_60px_-24px_rgba(15,23,42,0.35)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.3),0_28px_60px_-24px_rgba(0,0,0,0.75)]";
+
+/** Desktop: a framed mini-dashboard, fully inside the content area, with a sidebar from 1200 px of window width. */
 function ProductPreview({ state }: { state: OverviewState }) {
   const { data, error, loading } = state;
   return (
     <div data-testid="hero-preview" aria-label="A preview of the dashboard, with numbers read from the demonstration data"
-         role="group"
-         className="bleed-right overflow-hidden rounded-[22px] border border-line bg-surface shadow-[0_2px_6px_rgba(15,23,42,0.05),0_40px_90px_-30px_rgba(15,23,42,0.45)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.3),0_40px_90px_-30px_rgba(0,0,0,0.8)]">
+         role="group" className={cn("w-full overflow-hidden rounded-[20px] border border-line bg-surface", FRAME_SHADOW)}>
       {/* Window bar */}
       <div className="flex items-center gap-1.5 border-b border-line bg-surface-2/70 px-4 py-2.5" aria-hidden="true">
         <span className="size-2.5 rounded-full bg-[#fda4af]" /><span className="size-2.5 rounded-full bg-[#fcd34d]" /><span className="size-2.5 rounded-full bg-[#99d5cf]" />
-        <span className="ml-3 rounded-md bg-surface px-2.5 py-0.5 text-[10.5px] text-muted">fairlend-watch / overview</span>
+        <span className="ml-3 whitespace-nowrap rounded-md bg-surface px-2.5 py-0.5 text-[10.5px] text-muted">fairlend-watch / overview</span>
       </div>
       <div className="flex">
-        {/* Mini sidebar */}
-        <nav aria-label="Preview of the menu" className="w-44 shrink-0 border-r border-line bg-surface px-2.5 py-3">
+        {/* Mini sidebar: 150 px, shown only when the window is at least 1200 px wide. */}
+        <nav aria-label="Preview of the menu" className="hidden w-[150px] shrink-0 border-r border-line bg-surface px-2 py-3 min-[1200px]:block">
           <ul className="space-y-0.5">
             {PREVIEW_NAV.map((item) => (
               <li key={item.label} aria-current={item.active ? "page" : undefined}
-                  className={cn("flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium",
+                  className={cn("flex items-center gap-2 whitespace-nowrap rounded-lg px-2 py-1.5 text-[12px] font-medium",
                     item.active ? "bg-accent-soft text-accent" : "text-ink-2")}>
-                <item.icon className="size-3.5" aria-hidden="true" />{item.label}
+                <item.icon className="size-3.5 shrink-0" aria-hidden="true" />{item.label}
               </li>
             ))}
           </ul>
-          <p className="mb-1 mt-4 px-2.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-muted">Manage</p>
+          <p className="mb-1 mt-4 px-2 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-muted">Manage</p>
           <ul className="space-y-0.5">
             {PREVIEW_MANAGE.map((item) => (
-              <li key={item.label} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-ink-2">
-                <item.icon className="size-3.5" aria-hidden="true" />{item.label}
+              <li key={item.label} className="flex items-center gap-2 whitespace-nowrap rounded-lg px-2 py-1.5 text-[12px] font-medium text-ink-2">
+                <item.icon className="size-3.5 shrink-0" aria-hidden="true" />{item.label}
               </li>
             ))}
           </ul>
         </nav>
-        {/* Content */}
-        <div className="min-w-0 flex-1 space-y-2.5 bg-bg p-4">
+        {/* Content: a size container, so its parts follow the space they really have. */}
+        <div className="@container/preview min-w-0 flex-1 space-y-2.5 bg-bg p-3.5">
           <p className="text-sm font-semibold text-ink">Overview</p>
           {error ? <PreviewFallback /> : loading || !data ? <PreviewLoading /> : (
             <>
               <PreviewTiles data={data} />
-              <div className="grid grid-cols-[1fr_1.1fr] gap-2.5">
+              <div className="grid gap-2.5 @min-[540px]/preview:grid-cols-[1fr_1.15fr]">
                 <PreviewBands data={data} />
                 <PreviewTop data={data} />
               </div>
@@ -190,16 +198,16 @@ function ProductPreview({ state }: { state: OverviewState }) {
   );
 }
 
-/** Phone: a simpler card with the tiles and the bands only. */
+/** Phone and tablet: a simpler card with the tiles and the bands only. */
 function ProductPreviewCompact({ state }: { state: OverviewState }) {
   const { data, error, loading } = state;
   return (
     <div data-testid="hero-preview-compact" role="group" aria-label="A preview of the dashboard, with numbers read from the demonstration data"
-         className={cn(CARD, "space-y-2.5 p-3.5")}>
+         className={cn(CARD, "@container/preview space-y-2.5 p-3.5")}>
       <p className="text-sm font-semibold text-ink">Overview</p>
       {error ? <PreviewFallback /> : loading || !data ? <PreviewLoading compact /> : (
         <>
-          <PreviewTiles data={data} compact />
+          <PreviewTiles data={data} />
           <PreviewBands data={data} />
         </>
       )}
@@ -310,17 +318,19 @@ export default function LandingPage() {
         </header>
 
         {/* Hero */}
-        <section aria-labelledby="hero-title" className="relative overflow-hidden">
+        <section aria-labelledby="hero-title" className="relative">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
           {/* A soft teal and amber glow, top right; behind everything, never under the text column. */}
           <div aria-hidden="true" className="pointer-events-none absolute -right-40 -top-40 size-[640px] rounded-full bg-[#0f766e]/14 blur-[110px] dark:bg-[#2dd4bf]/12" />
           <div aria-hidden="true" className="pointer-events-none absolute -top-24 right-[18%] size-[420px] rounded-full bg-[#d97706]/12 blur-[110px] dark:bg-[#fbbf24]/8" />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pb-24 lg:pt-24">
+          </div>
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12 lg:pb-24 lg:pt-24">
             <div className="min-w-0">
               <p className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_oklab,var(--accent)_28%,transparent)] bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
                 <span aria-hidden="true" className="size-1.5 rounded-full bg-accent" />
                 Lending conduct monitor · prototype
               </p>
-              <h1 id="hero-title" className="mt-6 text-[42px] font-semibold leading-[1.04] tracking-[-0.025em] text-ink sm:text-[56px] lg:text-[62px]">
+              <h1 id="hero-title" className="mt-6 text-[42px] font-semibold leading-[1.05] tracking-[-0.025em] text-ink sm:text-[54px] lg:text-[50px] xl:text-[56px]">
                 Fair lending needs <span className={GRADIENT}>the whole picture.</span>
               </h1>
               <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-muted">
@@ -334,9 +344,9 @@ export default function LandingPage() {
                 </Button>
                 <Button asChild size="lg" variant="outline"><Link href="/request-access">Request access</Link></Button>
               </div>
-              <ul className="mt-8 flex flex-col gap-2.5 text-sm font-medium text-ink-2 sm:flex-row sm:gap-6">
+              <ul className="mt-8 flex flex-col gap-2.5 text-sm font-medium text-ink-2 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2.5">
                 {["No names stored", "Every flag explained", "A human decides"].map((point) => (
-                  <li key={point} className="flex items-center gap-2">
+                  <li key={point} className="flex items-center gap-2 whitespace-nowrap">
                     <CheckCircle2 className="size-[18px] text-accent" aria-hidden="true" />{point}
                   </li>
                 ))}
