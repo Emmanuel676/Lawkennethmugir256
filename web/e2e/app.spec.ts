@@ -1,4 +1,4 @@
-// Browser tests (Phase 12C, extended in Phase 14 and 14c): the landing page at phone and desktop width in both themes; keyboard
+// Browser tests (Phase 12C, extended in Phases 14, 14c and 14d): the landing page at phone and desktop width in both themes; keyboard
 // paths through sign-in, Request access with Admin approval, import and delete; phone width; both themes; and an
 // automated accessibility check (axe-core, WCAG 2 A and AA rules) that fails on any serious or critical problem.
 import { existsSync } from "node:fs";
@@ -13,6 +13,7 @@ const TABLES = ["lenders", "borrowers", "loans", "transactions", "messages"];
 const DATASET = "E2E lender D";
 const REQUESTER = "e2e.requester@example.org";
 const REQUESTER_PASSWORD = "a requester password";
+const TRUST = "Demonstration data. A flag is a prompt for a human to look, not a verdict.";
 
 async function expectAccessible(page: Page, label: string) {
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
@@ -75,7 +76,9 @@ for (const theme of ["light", "dark"] as const) {
       // The stats band: the first two figures come from the API.
       await expect(page.getByRole("term").filter({ hasText: "demonstration lenders compared" })).toBeAttached();
       await expect(page.getByRole("term").filter({ hasText: "signals behind every score" })).toBeAttached();
-      await expect(page.getByText("Demonstration data. A flag is a prompt for a human to look, not a verdict.").first()).toBeVisible();
+      // Phase 14d: no sticky strip; the message sits quietly in the footer.
+      await expect(page.getByRole("note", { name: "About this data" })).toHaveCount(0);
+      await expect(page.locator("footer").getByText(TRUST)).toBeVisible();
       await page.waitForLoadState("networkidle");
       const wide = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(wide, "the landing page is wider than the window").toBeLessThanOrEqual(size.width);
@@ -174,6 +177,18 @@ for (const theme of ["light", "dark"] as const) {
     }
   });
 }
+
+// --- The trust message, kept quiet (Phase 14d) ---------------------------------------------------------------------------
+
+test("the trust message is a small footer line on every page, not a sticky strip", async ({ page }) => {
+  for (const url of ["/overview", "/borrowers", "/lenders", "/repayments", "/about", "/signin", "/request-access"]) {
+    await page.goto(url);
+    await expect(page.getByRole("note", { name: "About this data" }), url).toHaveCount(0);
+    const line = page.getByRole("contentinfo").getByText(TRUST);
+    await expect(line, url).toBeAttached();
+    expect(await line.evaluate((el) => getComputedStyle(el).position), url).toBe("static");
+  }
+});
 
 // --- Keyboard paths ----------------------------------------------------------------------------------------------------
 

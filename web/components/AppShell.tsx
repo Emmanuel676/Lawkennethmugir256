@@ -2,7 +2,7 @@
 
 import {
   Building2, ClipboardCheck, Database, Download, Info, LayoutDashboard, Menu, PlayCircle, ScrollText,
-  ShieldAlert, Upload, UserRound, Users, Wallet, type LucideIcon,
+  Upload, UserRound, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -47,17 +47,10 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function TrustStrip() {
+/** The trust message, kept quiet (Phase 14d): one small muted line at the foot of every page, not a sticky banner. */
+export function TrustLine({ className = "" }: { className?: string }) {
   const { trustLine } = useMeta();
-  return (
-    <div role="note" aria-label="About this data"
-         className="sticky top-0 z-30 border-b border-amber/40 bg-tint-amber/95 text-[#7c2d12] backdrop-blur dark:bg-[#3a2410]/95 dark:text-[#fde6c4]">
-      <p className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 text-sm font-medium sm:px-6 lg:px-8">
-        <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
-        <span>{trustLine}</span>
-      </p>
-    </div>
-  );
+  return <p className={cn("text-xs leading-relaxed text-muted", className)}>{trustLine}</p>;
 }
 
 // The signed-in menus (Radix select and dropdown) load only for signed-in users, after the page has rendered.
@@ -134,7 +127,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen">
         {skip}
-        <TrustStrip />
         <main id="main" tabIndex={-1}>{children}</main>
       </div>
     );
@@ -179,7 +171,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <TrustStrip />
 
         {user && current.slug !== DEMO && (
           <div className="border-b border-line bg-surface">
@@ -190,9 +181,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <main id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 pb-28 pt-7 sm:px-6 lg:px-8 lg:pb-14">
+        <main id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 pb-10 pt-7 sm:px-6 lg:px-8 lg:pb-10">
           {children}
         </main>
+        {/* Room below for the phone's bottom bar. */}
+        <footer className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8 lg:pb-8">
+          <TrustLine className="border-t border-line pt-4" />
+        </footer>
       </div>
 
       {/* Phone bottom bar: the four pages, plus More (dataset switcher, Present and Manage pages) */}

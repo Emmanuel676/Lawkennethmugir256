@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-import { Logo } from "@/components/AppShell";
+import { Logo, TrustLine } from "@/components/AppShell";
 import { CountUp, MotionProvider, Reveal } from "@/components/motion";
 import { useSession } from "@/components/SessionProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -445,7 +445,10 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="border-t border-line bg-surface">
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <p>FairLend Watch · a prototype shown on demonstration data.</p>
+            <div className="space-y-1">
+              <p>FairLend Watch · a prototype shown on demonstration data.</p>
+              <TrustLine />
+            </div>
             <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
               <Link href="/about" className="font-medium text-ink-2 hover:text-accent">About</Link>
               <Link href="/guided-demo" className="font-medium text-ink-2 hover:text-accent">Guided demo</Link>
