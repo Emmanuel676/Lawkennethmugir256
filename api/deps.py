@@ -41,6 +41,7 @@ class Services:
     sources: DataSources
     accounts: AccountStore
     audit: AuditLog
+    limiter: object = None  # api.access.RequestLimiter for access requests (Phase 14)
 
     @property
     def catalog(self):

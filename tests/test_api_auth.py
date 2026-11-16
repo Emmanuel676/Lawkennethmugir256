@@ -99,6 +99,10 @@ MATRIX = [
     ("GET", "/api/repayments", None, "public"),
     ("GET", "/api/repayments/follow-up.csv", None, "public"),
     ("GET", "/api/auth/me", None, "public"),
+    ("GET", "/api/access-requests/options", None, "public"),                       # Phase 14
+    ("POST", "/api/access-requests", {"email": "bad"}, "public"),
+    ("POST", "/api/users/999999/approve", {"role": "viewer"}, "admin"),
+    ("POST", "/api/users/999999/reject", None, "admin"),
     ("GET", "/api/overview?dataset=someone-elses", None, "viewer"),
     ("GET", "/api/borrowers?dataset=someone-elses", None, "viewer"),
     ("GET", "/api/datasets", None, "viewer"),

@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { useDatasetApi } from "@/components/SessionProvider";
-import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pill } from "@/components/ui";
+import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pill } from "@/components/kit";
 import type { GuidedDemo } from "@/lib/api";
 
 export default function GuidedDemoPage() {
@@ -11,7 +11,7 @@ export default function GuidedDemoPage() {
 
   return (
     <>
-      <PageHeader title="Guided demo"
+      <PageHeader title="Guided demo" lookingAt="six cases chosen by fixed rules, each with one sentence to say and a button that opens it."
                   intro="A five-minute walkthrough: six steps, about 45 seconds each. Each step gives one sentence to say out loud, and its button opens the page already showing that case." />
 
       {error && <ErrorState message={error} onRetry={reload} />}

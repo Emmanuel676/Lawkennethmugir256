@@ -1,13 +1,17 @@
 "use client";
 
+import { buttonVariants } from "@/components/ui/button";
+
+import { Download } from "lucide-react";
+
 import { useState } from "react";
 
-import { AgeingChart, StatusChart } from "@/components/charts";
+import { AgeingChart, StatusChart } from "@/components/charts-lazy";
 import { DataTable, type Column } from "@/components/DataTable";
 import {
   BandBadge, Card, ChipGroup, EmptyState, ErrorState, KpiSkeletons, KpiTile, LoadingBlock, PageHeader, Pagination, Pill,
   Skeleton, Term,
-} from "@/components/ui";
+} from "@/components/kit";
 import { apiUrl, type FollowUp, type FollowUpRow, type Repayments } from "@/lib/api";
 import { int, pct } from "@/lib/format";
 import { DEMO, useDatasetApi, useSession } from "@/components/SessionProvider";
@@ -67,8 +71,8 @@ function FollowUpList({ total }: { total: number }) {
             credit score.</>}
           actions={
             <a href={apiUrl("/api/repayments/follow-up.csv", csvParams)} download="repayment_follow_up.csv"
-               className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink hover:opacity-90">
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16" /></svg>
+               className={buttonVariants({ size: "sm" })}>
+              <Download className="size-4" aria-hidden="true" />
               Download CSV
             </a>}>
       {data && (
@@ -81,7 +85,7 @@ function FollowUpList({ total }: { total: number }) {
             </label>
             <select id="fu-lender" value={lenders[0] ?? ""}
                     onChange={(e) => reset(setLenders)(e.target.value ? [e.target.value] : [])}
-                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink">
+                    className="h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink shadow-[inset_0_1px_1px_rgba(15,23,42,0.04)]">
               <option value="">All lenders</option>
               {data.options.lenders.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
@@ -119,7 +123,7 @@ export default function RepaymentsPage() {
 
   return (
     <>
-      <PageHeader title="Repayments"
+      <PageHeader title="Repayments" lookingAt="who repaid on time, who repaid late and who is not paying, so a person knows whose file to open."
                   intro="Who pays on time, who pays late, and who is not paying, so a person knows whose file to open. It says nothing about anyone's creditworthiness." />
 
       <div role="note" className="mb-6 rounded-xl border border-amber/50 bg-tint-amber p-4 text-sm leading-relaxed text-[#7c2d12] dark:bg-[#3a2410] dark:text-[#fde6c4]">

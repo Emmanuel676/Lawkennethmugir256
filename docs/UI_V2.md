@@ -1,4 +1,4 @@
-# FairLend Watch web interface v2 (Phases 12A, 12B, 12C and 13)
+# FairLend Watch web interface v2 (Phases 12A to 14)
 
 A web interface built in JavaScript (Next.js + TypeScript + Tailwind + Recharts) on top of the existing Python
 engine. It shows **the same numbers as the Streamlit app**, because every figure comes from the code in `src/`
@@ -13,6 +13,12 @@ still works as before and stays as the fallback.
 * **13:** neutral wording ("Demonstration data" everywhere); imports need no special endings on lender names or messages;
   Postgres storage for hosts with no permanent disk (`DATABASE_URL`); deployment files for Render and Vercel
   (`render.yaml`, `web/vercel.json`, `docs/DEPLOY_FREE.md`).
+
+* **14:**
+  * a public landing page at `/`, with the dashboard Overview moved to `/overview`;
+  * Request access with Admin approval;
+  * a waking-up screen for sleeping free hosts, and a first-visit guide;
+  * shadcn/ui components, Lucide icons and restrained Motion animation.
 
 With 12C the web app can replace Streamlit for presentations.
 
@@ -44,7 +50,7 @@ Then, in **two** PowerShell windows, both opened in the project folder:
 npm --prefix web run start
 ```
 
-Open http://localhost:3000. The built-in demo is open without signing in. Stop either window with Ctrl+C. While
+Open http://localhost:3000: the landing page. **Explore the demo** opens the dashboard at http://localhost:3000/overview. The built-in demo is open without signing in. Stop either window with Ctrl+C. While
 you change the web code, use `npm --prefix web run dev` instead of `build` and `start`.
 
 The browser only talks to the web app. The web app forwards every `/api/...` call to the API, which keeps the
@@ -68,7 +74,7 @@ its argon2 hash is stored. Then sign in at http://localhost:3000/signin and add 
 
 Before you start, off stage:
 
-* Run both windows (step 1) and open http://localhost:3000 **signed out**. Signed out, the app shows the demo only,
+* Run both windows (step 1) and open http://localhost:3000/overview **signed out** (http://localhost:3000 is the landing page; start there if you want to show it). Signed out, the app shows the demo only,
   and the trust strip reads "Demonstration data. A flag is a prompt for a human to look, not a verdict."
 * Open **Guided demo** (sidebar, under Present; on a phone, **More**) in a second tab.
 
@@ -100,59 +106,65 @@ Streamlit Guided Demo). `docs/DEMO_SCRIPT.md` keeps the Streamlit version of the
 
 ### 4. Screenshots of every page
 
-In `docs/ui_v2_screens/`:
+All retaken in Phase 14 with the current wording, in `docs/ui_v2_screens/`:
 
 | Page | Screenshot |
 |---|---|
-| Overview | `12c_overview.png`; the same for an imported dataset in the dark theme: `12c_overview_imported_dark.png` |
-| Borrowers | `12c_borrowers.png` |
-| One borrower | `12c_borrower_detail.png` (B02339, with the messages) |
-| Lenders | `12c_lenders.png` (opened on Redstone Loans from the guided demo) |
-| Repayments | `12c_repayments.png` (with the past-due / not-yet-due split); phone: `12c_phone_repayments.png` |
-| Guided demo | `12c_guided_demo.png`; phone: `12c_phone_guided_demo.png` |
-| Export | `12c_export.png` |
-| About | `12c_about.png` |
-| Sign in | `12c_signin.png` |
-| Datasets (Admin) | `12c_datasets_admin.png` |
-| Import data (Importer) | `12c_import_importer.png`; check, refusal and finished import: `12b_import_check_ok.png`, `12b_import_refused.png`, `12b_import_done.png` |
-| Review labels | `12c_review_imported.png` (an imported dataset, a batch started); `12c_review_demo.png` (the demo explains why it cannot be reviewed) |
-| Users (Admin) | `12c_users_admin.png` |
-| Audit log (Admin) | `12c_audit_admin.png` |
-| No permission, signed out | `12b_no_permission_viewer.png`, `12b_signed_out_datasets.png` |
-| Phone | `12b_phone_datasets_more_menu.png`, `12b_phone_overview_imported.png`, `12b_phone_import.png` |
+| Landing page | `14_landing_desktop.png` (full page), `14_landing_desktop_dark.png`, `14_landing_phone.png` |
+| Request access | `14_request_access.png` |
+| Overview | `14_overview_first_visit.png` (with the first-visit guide); imported dataset, dark theme: `14_overview_imported_dark.png`; phone: `14_phone_overview.png` |
+| Borrowers | `14_borrowers.png` |
+| One borrower | `14_borrower_detail.png` (B02339, with the messages) |
+| Lenders | `14_lenders.png` (opened on Redstone Loans from the guided demo) |
+| Repayments | `14_repayments.png` (with the past-due / not-yet-due split) |
+| Guided demo | `14_guided_demo.png` |
+| Export | `14_export.png` |
+| About | `14_about.png` |
+| Sign in | `14_signin.png` |
+| Datasets (Admin) | `14_datasets_admin.png` |
+| Import data (Importer) | `14_import_importer.png` |
+| Review labels | `14_review_imported.png` (an imported dataset, a batch started) |
+| Users, pending requests (Admin) | `14_users_pending_requests.png` |
+| Audit log (Admin) | `14_audit_admin.png` |
+| Waking-up screen | `14_waking_up.png` (shown when the API does not answer quickly, for example on a sleeping free host) |
+| Phone menu | `14_phone_more_menu.png` |
 
-The earlier `12a`- and `12b`-era files show the same pages before the 12C navigation was added.
+### 5. Test totals (Phase 14, run in batches)
 
-### 5. Test totals (Phase 13, run in batches)
+This computer runs low on memory, so the Python suite is run **in batches of test files, one process at a time, with
+no web or API server running** (checked before and after every batch). The batches on 2026-11-16:
 
-This computer runs low on memory, so the Python suite is run **in batches of test files, one process at a time**.
-The batches on 2026-11-15:
+| Batch | Files | Passed | Failed |
+|---|---|---:|---:|
+| 1 | test_api, test_api_12c, test_api_auth, test_wording, test_api_access | 84 | 0 |
+| 2 | test_api_datasets, test_api_postgres (with a throwaway local Postgres) | 26 | 0 |
+| 3 | test_bootstrap, test_branding_and_paths, test_classifier_local, test_dashboard_data | 130 | 0 |
+| 4 | test_dashboard_pages, test_data_page, test_datasets, test_edge_cases | 82 | 0 |
+| 5 | test_gemini_check, test_generate_data, test_import_data, test_import_robustness | 185 | 0 |
+| 6 | test_lender_comparison, test_money, test_overlap, test_phase9a_rules, test_presentation_and_demo | 147 | 0 |
+| 7 | test_redaction, test_repayments, test_review, test_review_page | 76 | 0 |
+| 8 | test_sample_pack | 59 | 0 |
+| 9 | test_shipped_dataset, test_team_access, test_theme_and_tiles, test_try_message, test_first_start_phase11 | 93 | 0 |
+| **Total** | 34 files | **882** | **0** |
 
-| Batch | Files | Passed | Failed | Time |
-|---|---|---:|---:|---:|
-| 1 | test_api, test_api_12c, test_api_auth, test_wording | 64 | 0 | 87 s |
-| 2 | test_api_datasets, test_api_postgres (with a throwaway local Postgres) | 26 | 0 | 151 s |
-| 3 | test_bootstrap, test_branding_and_paths, test_classifier_local, test_dashboard_data | 130 | 0 | 97 s |
-| 4 | test_dashboard_pages, test_data_page, test_datasets, test_edge_cases | 82 | 0 | 113 s |
-| 5 | test_gemini_check, test_generate_data, test_import_data, test_import_robustness | 185 | 0 | 48 s |
-| 6 | test_lender_comparison, test_money, test_overlap, test_phase9a_rules, test_presentation_and_demo | 147 | 0 | 47 s |
-| 7 | test_redaction, test_repayments, test_review, test_review_page | 76 | 0 | 74 s |
-| 8 | test_sample_pack | 59 | 0 | 86 s |
-| 9 | test_shipped_dataset, test_team_access, test_theme_and_tiles, test_try_message | 89 | 0 | 52 s |
-| 10 | test_first_start_phase11 | 4 | 0 | 14 s |
-| **Total** | 33 files | **862** | **0** | about 13 min |
+After the last edits (the Users page buttons and the new README), the batches that cover them were run again:
 
-The 9 Postgres tests run only when `FAIRLEND_TEST_DATABASE_URL` points at a test database; without it they are
-skipped and the other 3 tests in that file (the SQLite path is unchanged, the URL is never shown, the API refuses to
-start without a session secret) still run. **Note:** a web server you had left running on port 3000 was still up
-during these batches; the Python tests never use that port, and it was stopped afterwards.
+* batches 4 and 6: 82 and 147 passed, 0 failed;
+* batch 1: 83 passed. Its one Postgres migration test could not run because the throwaway test database had been
+  stopped for low memory; that test passed in the full run above.
 
-**Browser tests** (separate from the Python suite):
+The Postgres tests (9 in test_api_postgres, 1 migration test in test_api_access) run only when
+`FAIRLEND_TEST_DATABASE_URL` points at a test database; without it they are skipped.
 
-* 6 passed in about 1.8 minutes: keyboard sign-in, keyboard import, keyboard delete, phone width, light theme and
-  dark theme.
-* The accessibility check found no serious or critical problems on any page checked.
-* The web type check and production build pass.
+**Browser tests:** 13 passed in about 3 minutes.
+
+* The landing page at phone and desktop width, in both themes.
+* Keyboard paths through sign-in, Request access with Admin approval, import and delete.
+* Phone width on 11 pages, and the first-visit guide.
+* The accessibility check (WCAG 2 A and AA) found no serious or critical problems on any page visited, in both
+  themes.
+
+The web type check and production build pass.
 
 ### 6. Known limits
 
@@ -180,6 +192,41 @@ Signed in as an Admin, open **Users** (sidebar, under Manage; on a phone, **More
 * Every failure shows only "Email or password not recognised."
 * A sign-in lasts 8 hours (`FAIRLEND_SESSION_HOURS`).
 * **Sign out** is in the account menu.
+
+## Request access (Phase 14)
+
+Anyone can ask for an account on the public **Request access** page (`/request-access`, linked from the landing page
+and the sign-in page). The form asks for:
+
+* full name, email and organisation;
+* the type of user: Regulator or consumer body, Lender, Researcher or student, or Other;
+* a short reason;
+* a password, twice, with the usual rules.
+
+A note on the form says an administrator will see these details and that the account stays inactive until approved.
+
+* **Submitting creates a pending account that cannot sign in.** The confirmation is the same whether or not the email
+  already has an account, so the form cannot be used to find out who has one.
+* **Signing in before approval:** with the right password, the person is told the account is waiting for approval.
+  With a wrong password, or for a rejected or disabled account, they see the usual "Email or password not
+  recognised."
+* **Admin:** **Users** has a **Pending requests** tab with each request's name, organisation, type, reason and date.
+  * **Approve as Viewer** or **Approve as Importer**. To make someone an Admin, change their role later in the user list.
+  * **Reject** deletes the request.
+  * Both are recorded in the audit log, without the password or its hash.
+* **Abuse limits:**
+  * a hidden honeypot field;
+  * at most `FAIRLEND_REQUESTS_PER_HOUR` requests per address per hour (default 5);
+  * at most `FAIRLEND_MAX_PENDING` requests waiting at once (default 50);
+  * length limits on every field;
+  * the same cross-site check as every other change.
+
+  Behind a host's proxies, set `FAIRLEND_PROXY_HOPS` to the number of trusted proxies (2 for Vercel in front of
+  Render). Otherwise the connection address is used, which cannot be forged.
+* **No email is ever sent**, for requests, approvals or anything else. The pages say "check back later".
+* **Storage:** the users table gains `full_name`, `organisation`, `user_type`, `reason`, `status` and `requested_at`.
+  On both SQLite and Postgres they are added in place at start-up, and existing users become active
+  (tests/test_api_access.py checks this from the Phase 13 schema).
 
 ## Import a sample pack
 
@@ -280,6 +327,9 @@ scratch, stop the API and delete `data\web\`. The demo is not affected.
 | `FAIRLEND_API_URL` | `http://127.0.0.1:8000` | Where the web app forwards `/api/...`. **Read when the web app is built** (`npm run build`) or when `npm run dev` starts. |
 | `FAIRLEND_WEB_DATA` | `data\web` | Users, sessions, dataset metadata, audit log, imported datasets. |
 | `DATABASE_URL` | not set | Postgres for users, sessions, the audit log, the dataset list and the imported datasets' files (Phase 13). Read only from the environment and never printed. When set, `FAIRLEND_SESSION_SECRET` is required and cookies are always Secure. |
+| `FAIRLEND_PROXY_HOPS` | `0` | Trusted proxies in front of the API, for the visitor's address in `X-Forwarded-For` (Vercel + Render: `2`). |
+| `FAIRLEND_REQUESTS_PER_HOUR` | `5` | Access requests accepted per address per rolling hour. |
+| `FAIRLEND_MAX_PENDING` | `50` | Most access requests waiting for an Admin at once. |
 | `FAIRLEND_CACHE_DIR` | a temporary folder | Where Postgres-stored datasets are cached as files on first use. |
 | `FAIRLEND_SESSION_SECRET` | generated file | Session-signing secret. Never commit it. |
 | `FAIRLEND_SESSION_HOURS` | `8` | How long a sign-in lasts. |
@@ -334,9 +384,45 @@ to come from `FAIRLEND_WEB_ORIGINS`, on top of the httpOnly, SameSite=Strict ses
 
 ## The web app (web/)
 
+**First visit (Phase 14):**
+
+* The landing page at `/` explains the tool in plain words, with a live preview read from the API. Signed-in users
+  go straight to `/overview`.
+* If the API does not answer within a few seconds, for example a free host waking up, a full-page "The service is
+  waking up" message appears. It retries by itself and opens the app when the API is ready.
+* `/overview` shows a short first-visit guide. Dismissing it is remembered in the browser.
+* Every main page has a one-line "What you are looking at".
+
+**Design (Phase 14):**
+
+* shadcn/ui components (Radix) for buttons, inputs, selects, dialogs, menus, tabs, tooltips and toasts, themed with
+  the brand tokens.
+* Lucide icons.
+* Motion for the landing page's fade-and-rise on scroll.
+* Number tiles count up once.
+* Page changes fade in with CSS.
+* No animation hides content that is already on screen, and every animation stops when the system asks for reduced
+  motion.
+* Fonts, icons and illustrations are bundled; nothing is downloaded from other sites at run time.
+
+**Bundle size** (JavaScript a first-time visitor downloads, gzip, measured on a production build):
+
+| Page | Phase 13: needed to show the page | Phase 14: needed to show the page | Phase 14: everything within 4 s |
+|---|---:|---:|---:|
+| Landing page `/` | not there | 236 KB | 299 KB |
+| `/overview` (was `/` before Phase 14) | 258 KB | 198 KB | 281 KB |
+| `/borrowers` | 152 KB | 196 KB | 281 KB |
+| `/signin` | 150 KB | 195 KB | 303 KB |
+
+* The chart library now loads only on pages with charts, after the page has rendered.
+* The signed-in menus, toasts and Motion's animation features also load on demand.
+* The roughly 45 KB more on the simpler pages is the shared shadcn/ui foundation: the tooltip used for term
+  explanations, the class helpers and the icons.
+
 **Pages:**
 
-* For the chosen dataset: **Overview**, **Borrowers** (list and one borrower), **Lenders**, **Repayments**.
+* Public: the **landing page** (`/`) and **Request access** (`/request-access`).
+* For the chosen dataset: **Overview** (`/overview`), **Borrowers** (list and one borrower), **Lenders**, **Repayments**.
 * **Present:** **Guided demo**, **Export**, **About**.
 * **Sign in**.
 * **Manage:** **Datasets** (signed in), **Import data** and **Review labels** (Importer and Admin), **Users** and

@@ -148,9 +148,43 @@ shows "Out of memory" or restarts the service:
 * **One API instance only.** Each instance keeps its own cache of dataset files, so do not scale the Render
   service to more than one instance.
 
-## 8. Checklist before sharing the address
+## 8. Upgrading a live deployment to Phase 14 (landing page, request access)
 
-- [ ] `/api/health` answers `ok`; the web app's trust strip shows "Demonstration data."
+**What happens to the database on first start.** The new version adds six columns to the `users` table in Neon:
+`full_name`, `organisation`, `user_type`, `reason`, `status` and `requested_at`. It adds them **in place**, at start-up,
+with `ADD COLUMN IF NOT EXISTS`:
+
+* nothing is dropped or rewritten;
+* every existing user, including the live Admin, gets `status = 'active'` and keeps their password;
+* running it again is harmless.
+
+No manual SQL is needed. Make a Neon backup or branch first anyway.
+
+**Redeploy order.**
+
+1. **Render (API) first.** In the service's **Environment**, add `FAIRLEND_PROXY_HOPS=2`. It is already in
+   `render.yaml` for new blueprints: Vercel and Render sit in front of the API, so the visitor's address for the
+   access-request limit is two places from the end of `X-Forwarded-For`. Then **Manual Deploy > Deploy latest commit**.
+   Wait for `/api/health` to answer `ok`. The old web app keeps working against the new API meanwhile; it simply does
+   not use the new endpoints.
+2. **Vercel (web app) second.** Redeploy so the new landing page, `/overview`, `/request-access` and the waking-up
+   screen go live. `FAIRLEND_API_URL` does not change.
+3. **Check.**
+   * Open the Vercel address signed out: the landing page appears.
+   * **Explore the demo** opens `/overview`.
+   * Sign in as the Admin: **Users** now has a **Pending requests** tab.
+   * Send one test request from `/request-access`, then reject it.
+
+**Settings that may need a look** (all optional, on Render):
+
+* `FAIRLEND_REQUESTS_PER_HOUR` (default 5 per address);
+* `FAIRLEND_MAX_PENDING` (default 50 requests waiting at once).
+
+**No email is ever sent.** Tell people to check back and sign in once approved, as the pages say.
+
+## 9. Checklist before sharing the address
+
+- [ ] `/api/health` answers `ok`; the landing page loads signed out and its trust strip shows "Demonstration data."
 - [ ] `FAIRLEND_SESSION_SECRET` set in Render; the API would refuse to start without it.
 - [ ] `FAIRLEND_WEB_ORIGINS` (Render) equals the Vercel address; `FAIRLEND_API_URL` (Vercel) equals the Render address.
 - [ ] The first Admin was created with the hidden prompt; sign-in works; no test accounts remain.

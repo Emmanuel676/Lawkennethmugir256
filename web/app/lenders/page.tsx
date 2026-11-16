@@ -3,9 +3,9 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
-import { LenderIntervalChart } from "@/components/charts";
+import { LenderIntervalChart } from "@/components/charts-lazy";
 import { DataTable, type Column } from "@/components/DataTable";
-import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pill, Skeleton, Term } from "@/components/ui";
+import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pill, Skeleton, Term } from "@/components/kit";
 import type { LenderDetail, LenderRow, Lenders } from "@/lib/api";
 import { dateTime, int, pct, titleCase } from "@/lib/format";
 import { useDatasetApi } from "@/components/SessionProvider";
@@ -75,7 +75,7 @@ function LendersInner() {
 
   return (
     <>
-      <PageHeader title="Lenders"
+      <PageHeader title="Lenders" lookingAt="each lender's share of collection messages labelled abusive, with how certain that share is."
                   intro={<>Lenders are ranked by the <strong>lower end</strong> of the {level} <Term k="confidence_interval">confidence
                     interval</Term> of the share of their messages <Term k="labelled_abusive">labelled abusive</Term> (threat or
                     shaming). A top rank means a person should read that lender&apos;s messages; it is not a finding of misconduct.</>} />
@@ -124,7 +124,7 @@ function LendersInner() {
           <Card id="one" title="Look at one lender" subtitle="Choose a lender, or select a row in the table above.">
             <label htmlFor="lender-pick" className="sr-only">Lender</label>
             <select id="lender-pick" value={picked} onChange={(e) => setPicked(e.target.value)}
-                    className="mb-4 w-full max-w-md rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink">
+                    className="mb-4 h-10 w-full max-w-md rounded-lg border border-line bg-surface px-3 text-sm text-ink shadow-[inset_0_1px_1px_rgba(15,23,42,0.04)]">
               <option value="">Choose a lender…</option>
               {all.map((r) => <option key={r.lender_id} value={r.lender_id}>{r.name}</option>)}
             </select>

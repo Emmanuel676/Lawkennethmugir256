@@ -224,7 +224,9 @@ def test_follow_up_filters(client):
 WRITE_ROUTES = {("POST", "/api/auth/login"), ("POST", "/api/auth/logout"), ("POST", "/api/users"),
                 ("PATCH", "/api/users/{user_id}"), ("POST", "/api/users/{user_id}/password"),
                 ("DELETE", "/api/datasets/{slug}"), ("POST", "/api/imports/check"), ("POST", "/api/imports"),
-                ("POST", "/api/review/batch"), ("POST", "/api/review/label")}  # Phase 12C: Review labels
+                ("POST", "/api/review/batch"), ("POST", "/api/review/label"),  # Phase 12C: Review labels
+                ("POST", "/api/access-requests"), ("POST", "/api/users/{user_id}/approve"),  # Phase 14
+                ("POST", "/api/users/{user_id}/reject")}
 
 
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
@@ -302,12 +304,15 @@ API_FILES = sorted((ROOT / "api").glob("*.py"))
 
 
 def test_api_code_never_touches_answer_labels_secrets_or_the_network():
-    forbidden = ("ground_truth", "gt_borrowers", "gt_messages", "profile_type", ".env", "dotenv", "requests",
-                 "urllib", "genai", "GEMINI")
+    forbidden = ("ground_truth", "gt_borrowers", "gt_messages", "profile_type", ".env", "dotenv", "genai", "GEMINI")
+    # Network libraries are caught by their imports: since Phase 14 the plain word "requests" is ordinary wording
+    # ("access requests"), so the word itself is no longer a signal.
+    network_import = re.compile(r"^\s*(?:import|from)\s+(?:requests|urllib|http\.client|socket|aiohttp)\b", re.MULTILINE)
     for path in API_FILES:
         text = path.read_text(encoding="utf-8")
         for word in forbidden:
             assert not re.search(rf"(?<![\w.]){re.escape(word)}(?!\w)", text), f"{path.name} mentions {word}"
+        assert not network_import.search(text), f"{path.name} imports a network library"
 
 
 def test_api_wording_never_calls_anyone_guilty(client):

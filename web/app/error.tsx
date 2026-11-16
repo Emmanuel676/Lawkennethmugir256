@@ -1,6 +1,6 @@
 "use client";
 
-import { ErrorState } from "@/components/ui";
+import { ErrorState } from "@/components/kit";
 
 export default function PageError({ reset }: { error: Error; reset: () => void }) {
   return (

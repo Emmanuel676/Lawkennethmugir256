@@ -1,12 +1,17 @@
 "use client";
 
+import { Eye, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { RequireRole } from "@/components/RequireRole";
 import { DEMO, useSession } from "@/components/SessionProvider";
-import { Card, EmptyState, ErrorState, inputClass, LoadingBlock, PageHeader, Pill } from "@/components/ui";
+import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pill } from "@/components/kit";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/sonner";
 import { sendJson, type DatasetEntry, type DatasetList } from "@/lib/api";
 import { date, int } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -18,18 +23,20 @@ function when(seconds: number | null): string {
 }
 
 function DeleteDialog({ entry, onClose, onDeleted }: {
-  entry: DatasetEntry; onClose: () => void; onDeleted: (message: string) => void;
+  entry: DatasetEntry | undefined; onClose: () => void; onDeleted: (message: string) => void;
 }) {
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
   async function remove() {
+    if (!entry) return;
     setBusy(true);
     setError(undefined);
     try {
       const body = await sendJson<{ message: string }>("DELETE", `/api/datasets/${encodeURIComponent(entry.slug)}`,
                                                        { confirm_name: typed });
+      setTyped("");
       onDeleted(body.message);
     } catch (err) {
       setError((err as Error).message);
@@ -39,31 +46,24 @@ function DeleteDialog({ entry, onClose, onDeleted }: {
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="delete-title"
-         className="fixed inset-0 z-50 grid place-items-center bg-navy/50 p-4"
-         onKeyDown={(e) => e.key === "Escape" && onClose()}>
-      <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-xl">
-        <h2 id="delete-title" className="text-lg font-semibold text-ink">Delete “{entry.name}”?</h2>
-        <p className="mt-2 text-sm text-muted">This removes the dataset and all its files for every user. It cannot be
-          undone. The demo is never affected.</p>
-        <label htmlFor="confirm-name" className="mt-4 block text-sm font-medium text-ink-2">
-          Type the dataset name to confirm: <span className="font-semibold text-ink">{entry.name}</span>
-        </label>
-        <input id="confirm-name" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)}
-               className={`${inputClass} mt-1.5`} autoComplete="off" />
+    <Dialog open={Boolean(entry)} onOpenChange={(open) => { if (!open) { setTyped(""); setError(undefined); onClose(); } }}>
+      <DialogContent>
+        <DialogTitle>Delete “{entry?.name}”?</DialogTitle>
+        <DialogDescription>This removes the dataset and all its files for every user. It cannot be undone. The built-in
+          demonstration data is never affected.</DialogDescription>
+        <div className="mt-4 space-y-1.5">
+          <Label htmlFor="confirm-name">Type the dataset name to confirm: <span className="font-semibold text-ink">{entry?.name}</span></Label>
+          <Input id="confirm-name" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+        </div>
         {error && <p role="alert" className="mt-2 text-sm text-[#9f1239] dark:text-[#fecdd3]">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose}
-                  className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2">
-            Cancel
-          </button>
-          <button type="button" onClick={remove} disabled={busy || typed.trim() !== entry.name}
-                  className="rounded-lg bg-[#9f1239] px-4 py-2 text-sm font-semibold text-white hover:bg-[#881337] disabled:opacity-40">
-            {busy ? "Deleting…" : "Delete dataset"}
-          </button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="destructive" onClick={remove} disabled={busy || typed.trim() !== entry?.name}>
+            <Trash2 aria-hidden="true" /> {busy ? "Deleting…" : "Delete dataset"}
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -79,11 +79,10 @@ function DatasetsInner() {
   return (
     <>
       <PageHeader title="Datasets"
-                  intro="Shared datasets: every signed-in user sees the same list. Choose which one the Overview, Borrowers, Lenders and Repayments pages show. The built-in demo is the default and cannot be changed or deleted.">
+                  intro="Shared datasets: every signed-in user sees the same list. Choose which one the Overview, Borrowers, Lenders and Repayments pages show. The built-in demo is the default and cannot be changed or deleted."
+                  lookingAt="every dataset you can open, who added it and how big it is.">
         {data?.can_import && (
-          <Link href="/import" className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink hover:opacity-90">
-            Add a dataset
-          </Link>
+          <Button asChild><Link href="/import"><Plus aria-hidden="true" /> Add a dataset</Link></Button>
         )}
       </PageHeader>
 
@@ -123,16 +122,13 @@ function DatasetsInner() {
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    <button type="button" disabled={active}
-                            onClick={() => { setDataset(d.slug); router.push("/"); }}
-                            className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink hover:opacity-90 disabled:opacity-40">
-                      {active ? "Showing" : "Show this dataset"}
-                    </button>
+                    <Button size="sm" disabled={active} onClick={() => { setDataset(d.slug); router.push("/overview"); }}>
+                      <Eye aria-hidden="true" /> {active ? "Showing" : "Show this dataset"}
+                    </Button>
                     {d.deletable && (
-                      <button type="button" onClick={() => setDeleting(d)}
-                              className="rounded-lg border border-[#fda4af] px-3 py-2 text-sm font-medium text-[#9f1239] hover:bg-[#fff1f2] dark:border-[#9f1239] dark:text-[#fecdd3] dark:hover:bg-[#2a0a12]">
-                        Delete
-                      </button>
+                      <Button size="sm" variant="destructive-outline" onClick={() => setDeleting(d)}>
+                        <Trash2 aria-hidden="true" /> Delete
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -148,16 +144,15 @@ function DatasetsInner() {
         </div>
       )}
 
-      {deleting && (
-        <DeleteDialog entry={deleting} onClose={() => setDeleting(undefined)}
-                      onDeleted={(message) => {
-                        setDeleting(undefined);
-                        setNotice(message);
-                        if (deleting.slug === dataset) setDataset(DEMO);
-                        reload();
-                        reloadDatasets();
-                      }} />
-      )}
+      <DeleteDialog entry={deleting} onClose={() => setDeleting(undefined)}
+                    onDeleted={(message) => {
+                      if (deleting?.slug === dataset) setDataset(DEMO);
+                      setDeleting(undefined);
+                      setNotice(message);
+                      toast.success(message);
+                      reload();
+                      reloadDatasets();
+                    }} />
     </>
   );
 }

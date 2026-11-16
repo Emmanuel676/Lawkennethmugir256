@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";   /* shadcn/ui opening and closing animations, bundled with the app */
 
 /* Dark theme is chosen by a class on <html> (set by the theme toggle), never automatically mid-session. */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -126,4 +127,27 @@ body {
   border: 1px solid var(--line) !important;
   border-radius: 8px !important;
   color: var(--ink) !important;
+}
+
+/* Phase 14: the landing hero's background (drawn in CSS, no image files), and motion that respects the visitor. */
+.hero-grid {
+  background-image:
+    radial-gradient(60rem 28rem at 15% -10%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(40rem 22rem at 95% 10%, color-mix(in oklab, var(--amber) 12%, transparent), transparent 70%),
+    linear-gradient(color-mix(in oklab, var(--line) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--line) 55%, transparent) 1px, transparent 1px);
+  background-size: auto, auto, 44px 44px, 44px 44px;
+  background-position: 0 0, 0 0, -1px -1px, -1px -1px;
+}
+.hero-grid-fade {
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

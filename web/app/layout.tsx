@@ -4,14 +4,17 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { ApiGate } from "@/components/ApiGate";
 import { AppShell } from "@/components/AppShell";
 import { MetaProvider } from "@/components/MetaProvider";
 import { SessionProvider } from "@/components/SessionProvider";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { LazyToaster as Toaster } from "@/components/ui/toaster-lazy";
 
 export const metadata: Metadata = {
   title: { default: "FairLend Watch", template: "%s · FairLend Watch" },
-  description: "Lending conduct monitor. Demonstration data. A flag is a prompt for a human to look, not a verdict.",
+  description: "Lending conduct monitor. A prototype shown on demonstration data. A flag is a prompt for a human to look, not a verdict.",
   robots: { index: false, follow: false },
 };
 
@@ -28,11 +31,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="font-sans">
-        <SessionProvider>
-          <MetaProvider>
-            <AppShell>{children}</AppShell>
-          </MetaProvider>
-        </SessionProvider>
+        <TooltipProvider delayDuration={150}>
+          <SessionProvider>
+            <MetaProvider>
+                <ApiGate>
+                  <AppShell>{children}</AppShell>
+                </ApiGate>
+              </MetaProvider>
+            </SessionProvider>
+            <Toaster />
+          </TooltipProvider>
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDatasetApi } from "@/components/SessionProvider";
-import { Card, ErrorState, LoadingBlock, PageHeader, Pill } from "@/components/ui";
+import { Card, ErrorState, LoadingBlock, PageHeader, Pill } from "@/components/kit";
 import type { About } from "@/lib/api";
 import { pct } from "@/lib/format";
 
@@ -10,7 +10,7 @@ export default function AboutPage() {
 
   return (
     <>
-      <PageHeader title="About FairLend Watch"
+      <PageHeader title="About FairLend Watch" lookingAt="what the tool does, how the score is built, what the message labels mean and what the tool cannot do."
                   intro="What the system is, who it is for, how the score works, and what it cannot do." />
       {error && <ErrorState message={error} onRetry={reload} />}
       {!error && loading && !data && <LoadingBlock rows={10} label="Loading" />}

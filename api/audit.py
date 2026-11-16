@@ -24,6 +24,8 @@ ACTIONS = {
     "password_reset": "Reset a user's password",
     "login_locked": "Sign-in locked after too many wrong passwords",
     "review_label": "Checked a message label",
+    "access_approve": "Approved an access request",
+    "access_reject": "Rejected an access request",
 }
 
 

@@ -4,6 +4,15 @@
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
+/** Fired when a call finds the data service unreachable, so ApiGate can show the "waking up" page (Phase 14). */
+export const API_DOWN_EVENT = "fairlend:api-down";
+
+function signalDown(status: number) {
+  if (typeof window !== "undefined" && (status === 0 || status === 502 || status === 504 || status === 500)) {
+    window.dispatchEvent(new Event(API_DOWN_EVENT));
+  }
+}
+
 export type BandKey = "high" | "medium" | "low";
 export interface Band { key: BandKey; label: string }
 export interface Money { amount: number | null; exact: string; compact: string }
@@ -140,11 +149,13 @@ async function send(path: string, init: RequestInit, params?: Params): Promise<R
     return await fetch(apiUrl(path, params), { credentials: "same-origin", ...init });
   } catch (error) {
     if ((error as Error).name === "AbortError") throw error;
-    throw new ApiError("The data service is not reachable. Is the API running? (see docs/UI_V2.md)", 0);
+    signalDown(0);
+    throw new ApiError("The data service is not reachable right now. It may be starting up; please wait a moment.", 0);
   }
 }
 
 async function readError(response: Response): Promise<ApiError> {
+  signalDown(response.status);
   let detail = `The data service answered ${response.status}.`;
   if (response.status === 401) detail = "Sign in to see this.";
   if (response.status === 403) detail = "Your role does not allow this. Ask an Admin if you need it.";
@@ -188,6 +199,8 @@ export const ROLE_LABEL: Record<Role, string> = { viewer: "Viewer", importer: "I
 
 export interface User {
   id: number; email: string; role: Role; disabled: boolean; created_at: number; created_by: string; locked: boolean;
+  status: "active" | "pending"; full_name: string; organisation: string; user_type: string; user_type_label: string;
+  reason: string; requested_at: number;
 }
 export interface Me { user: User | null; roles: Role[] }
 
@@ -217,7 +230,7 @@ export interface ImportInfo {
   day_first_default: boolean; targets: { slug: string; name: string }[]; label: string;
 }
 
-export interface UserList { users: User[]; roles: Role[]; password_min_length: number }
+export interface UserList { users: User[]; pending: User[]; roles: Role[]; password_min_length: number }
 export interface AuditEntry {
   id: number; at: number; actor: string; action: string; action_label: string; target: string;
   detail: Record<string, unknown>;

@@ -1,11 +1,15 @@
 "use client";
 
+import { Download, Play } from "lucide-react";
+
+import { Button, buttonVariants } from "@/components/ui/button";
+
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { RequireRole } from "@/components/RequireRole";
 import { DEMO, useCurrentDataset, useSession } from "@/components/SessionProvider";
-import { Card, EmptyState, ErrorState, inputClass, KpiTile, LoadingBlock, PageHeader, Pill } from "@/components/ui";
+import { Card, EmptyState, ErrorState, inputClass, KpiTile, LoadingBlock, PageHeader, Pill } from "@/components/kit";
 import { apiUrl, getJson, sendJson, type ReviewMessage, type ReviewSummary } from "@/lib/api";
 import { dateTime, int, pct } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -89,8 +93,7 @@ function Reviewer({ slug, summary, onSaved }: { slug: string; summary: ReviewSum
           <input id="size" type="number" min={1} max={500} value={size} onChange={(e) => setSize(Math.min(500, Math.max(1, Number(e.target.value) || 1)))} className={inputClass} /></div>
         <div><label htmlFor="reviewer" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">Your initials or a code</label>
           <input id="reviewer" maxLength={20} value={reviewer} onChange={(e) => setReviewer(e.target.value)} className={inputClass} placeholder="optional" /></div>
-        <button type="button" onClick={start} disabled={busy}
-                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:opacity-40">Start a new batch</button>
+        <Button onClick={start} disabled={busy}><Play aria-hidden="true" /> Start a new batch</Button>
       </div>
       <p className="mt-2 text-xs text-muted">Do the random check first: it is the only fair measure of how often the model is right.</p>
 
@@ -111,13 +114,11 @@ function Reviewer({ slug, summary, onSaved }: { slug: string; summary: ReviewSum
               )}
               <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Choose the label for this message">
                 {summary.classes.map((c) => (
-                  <button key={c} type="button" disabled={busy} onClick={() => save(c)}
-                          className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink hover:bg-accent-soft disabled:opacity-40">
+                  <Button key={c} variant="outline" disabled={busy} onClick={() => save(c)}>
                     {CLASS_LABEL[c] ?? c}
-                  </button>
+                  </Button>
                 ))}
-                <button type="button" disabled={busy} onClick={() => setPos((p) => p + 1)}
-                        className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-surface-2">Not sure / skip</button>
+                <Button variant="ghost" disabled={busy} onClick={() => setPos((p) => p + 1)}>Not sure / skip</Button>
               </div>
             </>
           )}
@@ -170,8 +171,8 @@ function ReviewInner() {
       <Reviewer slug={dataset} summary={data} onSaved={reload} />
       <Card id="export" title="Export the labels a person has checked">
         <a href={apiUrl("/api/review/export.csv", { dataset })} download
-           className={`inline-flex rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2 ${data.reviewed ? "" : "pointer-events-none opacity-40"}`}
-           aria-disabled={!data.reviewed}>Download reviewed labels (CSV)</a>
+           className={buttonVariants({ variant: "outline", className: data.reviewed ? "" : "pointer-events-none opacity-40" })}
+           aria-disabled={!data.reviewed}><Download aria-hidden="true" /> Download reviewed labels (CSV)</a>
         <p className="mt-2 text-xs text-muted">The file starts with a &apos;#&apos; notice line and includes the message text as stored (redacted at import).</p>
       </Card>
     </div>
@@ -181,7 +182,7 @@ function ReviewInner() {
 export default function ReviewPage() {
   return (
     <>
-      <PageHeader title="Review labels"
+      <PageHeader title="Review labels" lookingAt="a sample of the model's message labels for a person to check, and how often the model was right."
                   intro="Check a sample of the model's message labels on an imported dataset. Your label is a person's judgement about the wording, not a legal finding." />
       <RequireRole role="importer" what="review labels"><ReviewInner /></RequireRole>
     </>

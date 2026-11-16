@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { DataTable, type Column } from "@/components/DataTable";
 import { RequireRole } from "@/components/RequireRole";
-import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pagination, Pill } from "@/components/ui";
+import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Pagination, Pill } from "@/components/kit";
 import type { AuditEntry, AuditPage } from "@/lib/api";
 import { date, int } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -63,7 +63,7 @@ function AuditInner() {
 export default function AuditPageView() {
   return (
     <>
-      <PageHeader title="Audit log" intro="Who imported, deleted or changed what, and when." />
+      <PageHeader title="Audit log" lookingAt="who imported, deleted, approved or changed what, and when. No passwords and no message text." intro="Who imported, deleted or changed what, and when." />
       <RequireRole role="admin" what="read the audit log"><AuditInner /></RequireRole>
     </>
   );

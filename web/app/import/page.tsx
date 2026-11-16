@@ -1,12 +1,16 @@
 "use client";
 
+import { FileArchive, FileSpreadsheet, Loader2 } from "lucide-react";
+
+import { Button, buttonVariants } from "@/components/ui/button";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { RequireRole } from "@/components/RequireRole";
 import { useSession } from "@/components/SessionProvider";
-import { Card, ErrorState, inputClass, LoadingBlock, PageHeader, Pill } from "@/components/ui";
+import { Card, ErrorState, inputClass, LoadingBlock, PageHeader, Pill } from "@/components/kit";
 import { apiUrl, sendForm, type ImportInfo, type ImportOutcome, type Issue } from "@/lib/api";
 import { int } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -188,10 +192,10 @@ function ImportInner() {
         <p className="text-sm text-muted">One Excel workbook with the sheets lenders, borrowers, loans, transactions and
           messages, or the same five tables as CSV files. Amounts are whole Ugandan shillings (UGX).</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <a href={apiUrl("/api/imports/template", { format: "xlsx" })} download
-             className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2">Excel workbook (.xlsx)</a>
-          <a href={apiUrl("/api/imports/template", { format: "csv" })} download
-             className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2">Five CSV files (.zip)</a>
+          <a href={apiUrl("/api/imports/template", { format: "xlsx" })} download className={buttonVariants({ variant: "outline" })}>
+            <FileSpreadsheet aria-hidden="true" /> Excel workbook (.xlsx)</a>
+          <a href={apiUrl("/api/imports/template", { format: "csv" })} download className={buttonVariants({ variant: "outline" })}>
+            <FileArchive aria-hidden="true" /> Five CSV files (.zip)</a>
         </div>
         <p className="mt-3 text-xs text-muted">To try it, use a sample pack: run <code className="rounded bg-surface-2 px-1">.\dev.ps1 -SamplePack</code>,
           then upload the five CSV files in <code className="rounded bg-surface-2 px-1">sample_pack\baseline\lender_A</code>.</p>
@@ -257,10 +261,9 @@ function ImportInner() {
         <p className="mt-3 text-xs text-muted">Message text is always redacted: phone numbers, emails, ID numbers and listed
           names become [PHONE], [EMAIL], [ID] and [NAME]. Every upload goes through the upload check first; a refused
           upload is never stored. Limits: {info.data.limits.max_upload_mb} MB, {int(info.data.limits.max_rows_per_file)} rows per file.</p>
-        <button type="button" onClick={check} disabled={!files.length || tooBig || busy !== undefined || (mode === "add" && !target)}
-                className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:opacity-40">
-          {busy === "check" ? "Checking…" : "Check the files"}
-        </button>
+        <Button className="mt-4" onClick={check} disabled={!files.length || tooBig || busy !== undefined || (mode === "add" && !target)}>
+          {busy === "check" ? <><Loader2 className="animate-spin" aria-hidden="true" /> Checking…</> : "Check the files"}
+        </Button>
         {error && <p role="alert" className="mt-3 text-sm text-[#9f1239] dark:text-[#fecdd3]">{error}</p>}
         {current && <div className="mt-4" aria-live="polite"><Result outcome={current} /></div>}
         {checked && !current && <p className="mt-3 text-sm text-muted">The files or settings changed since the last check. Check again.</p>}
@@ -271,10 +274,9 @@ function ImportInner() {
           <input type="checkbox" className={`${radio} mt-0.5`} checked={permission} onChange={(e) => setPermission(e.target.checked)} />
           {info.data.permission_text}
         </label>
-        <button type="button" onClick={runImport} disabled={!ready || busy !== undefined}
-                className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:opacity-40">
-          {busy === "import" ? "Importing and labelling the messages…" : "Import"}
-        </button>
+        <Button className="mt-4" onClick={runImport} disabled={!ready || busy !== undefined}>
+          {busy === "import" ? <><Loader2 className="animate-spin" aria-hidden="true" /> Importing and labelling the messages…</> : "Import"}
+        </Button>
         {!ready && !done && <p className="mt-2 text-xs text-muted">Import becomes possible after a check with no errors, with the box ticked
           {mode === "new" ? " and a dataset name" : " and a dataset chosen"}.</p>}
         {done && (
@@ -284,13 +286,10 @@ function ImportInner() {
             {done.already_known > 0 && <p className="mt-1 text-sm"><Pill tone="teal">{int(done.already_known)} borrower codes already known</Pill> The same people were already in the dataset from another lender.</p>}
             <p className="mt-1 text-xs">A flag is a prompt for a human to look, not a verdict.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => { setDataset(done.dataset); router.push("/"); }}
-                      className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink">Show this dataset</button>
-              <button type="button" onClick={() => { setMode("add"); setTarget(done.dataset); setDone(undefined); setPermission(false); }}
-                      className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2">Add another lender&apos;s files</button>
-              <button type="button" onClick={() => { setDataset(done.dataset); router.push("/review"); }}
-                      className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2">Review labels</button>
-              <Link href="/datasets" className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2">All datasets</Link>
+              <Button size="sm" onClick={() => { setDataset(done.dataset); router.push("/overview"); }}>Show this dataset</Button>
+              <Button size="sm" variant="outline" onClick={() => { setMode("add"); setTarget(done.dataset); setDone(undefined); setPermission(false); }}>Add another lender&apos;s files</Button>
+              <Button size="sm" variant="outline" onClick={() => { setDataset(done.dataset); router.push("/review"); }}>Review labels</Button>
+              <Button size="sm" variant="outline" asChild><Link href="/datasets">All datasets</Link></Button>
             </div>
           </div>
         )}
@@ -302,7 +301,7 @@ function ImportInner() {
 export default function ImportPage() {
   return (
     <>
-      <PageHeader title="Import data"
+      <PageHeader title="Import data" lookingAt="the four steps to add a shared dataset: template, destination, upload and check, import."
                   intro="Add a shared dataset in four steps. Nothing is saved until the check finds no errors. Uploads with phone numbers, ID numbers or email addresses in lender names or messages are refused." />
       <RequireRole role="importer" what="import data">
         <ImportInner />

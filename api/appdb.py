@@ -103,6 +103,36 @@ PG_SCHEMA = [
 ]
 
 
+# Phase 14: request access with Admin approval. These columns are ADDED IN PLACE to an existing users table (the
+# Phase 12B/13 schema) on every start, on both backends, so a live database migrates safely: missing columns are
+# added, nothing is dropped or rewritten, and every existing user gets status 'active'. A new database takes the
+# same path (create the Phase 13 table, then add the columns), so the migration is exercised on every start.
+USER_STATUSES = ("active", "pending")
+USER_COLUMNS_V14 = (
+    ("full_name", "TEXT NOT NULL DEFAULT ''"),
+    ("organisation", "TEXT NOT NULL DEFAULT ''"),
+    ("user_type", "TEXT NOT NULL DEFAULT ''"),
+    ("reason", "TEXT NOT NULL DEFAULT ''"),
+    ("status", "TEXT NOT NULL DEFAULT 'active'"),
+    ("requested_at", "{float} NOT NULL DEFAULT 0"),
+)
+
+
+def _sqlite_migrate(conn) -> list[str]:
+    have = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+    added = []
+    for name, kind in USER_COLUMNS_V14:
+        if name not in have:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {name} {kind.format(float='REAL')}")
+            added.append(name)
+    return added
+
+
+def _postgres_migrate(conn) -> None:
+    for name, kind in USER_COLUMNS_V14:
+        conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {name} {kind.format(float='DOUBLE PRECISION')}")
+
+
 class DatabaseUnavailable(RuntimeError):
     """The database cannot be reached. The message never contains the database URL."""
 
@@ -124,6 +154,7 @@ class AppDatabase:
         conn = sqlite3.connect(str(self.path))
         try:
             conn.executescript(SCHEMA)
+            _sqlite_migrate(conn)  # Phase 14 columns, added in place
             conn.commit()
         finally:
             conn.close()
@@ -194,6 +225,7 @@ class PostgresDatabase:
                 conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{self._schema}"')
             for statement in PG_SCHEMA:
                 conn.execute(statement)
+            _postgres_migrate(conn)  # Phase 14 columns, added in place
             conn.commit()
         finally:
             conn.close()

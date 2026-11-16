@@ -1,5 +1,7 @@
 "use client";
 
+import { Button, buttonVariants } from "@/components/ui/button";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -7,7 +9,7 @@ import { Suspense, useEffect, useState } from "react";
 import { DataTable, type Column } from "@/components/DataTable";
 import {
   BandBadge, Card, ChipGroup, EmptyState, ErrorState, Field, inputClass, LoadingBlock, PageHeader, Pagination, Pill, Term,
-} from "@/components/ui";
+} from "@/components/kit";
 import type { BandKey, BorrowerList, BorrowerRow } from "@/lib/api";
 import { int, ratio, score } from "@/lib/format";
 import { useDatasetApi } from "@/components/SessionProvider";
@@ -85,17 +87,16 @@ function BorrowersInner() {
 
   return (
     <>
-      <PageHeader title="Borrowers"
+      <PageHeader title="Borrowers" lookingAt="every scored borrower, one row each, with the signals behind their score. Filter, sort, then open one."
                   intro={<>Every borrower with an <Term k="overlap_score">overlap score</Term>. Filter the list, sort any
                     column with an arrow, and open a borrower to see their loans across every lender and the messages they received.</>} />
 
       <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
         <Card id="filters" title="Filters" className="h-fit lg:sticky lg:top-16"
               actions={filtersOn ? (
-                <button type="button" className="text-sm font-medium text-accent hover:underline"
-                        onClick={() => { setQDraft(""); router.replace(pathname, { scroll: false }); }}>
+                <Button variant="link" size="sm" onClick={() => { setQDraft(""); router.replace(pathname, { scroll: false }); }}>
                   Clear all
-                </button>) : undefined}>
+                </Button>) : undefined}>
           <div className="space-y-5">
             <Field label="Borrower code contains" htmlFor="q">
               <input id="q" type="search" value={qDraft} maxLength={40} placeholder="e.g. B0042"

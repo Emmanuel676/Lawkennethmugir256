@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 export interface Column<T> {
@@ -60,11 +61,11 @@ export function DataTable<T>({ columns, rows, rowKey, caption, server, maxHeight
   }
 
   return (
-    <div className="relative overflow-auto rounded-xl border border-line" style={{ maxHeight }} tabIndex={0}
+    <div className="relative overflow-auto rounded-xl border border-line bg-surface" style={{ maxHeight }} tabIndex={0}
          role="region" aria-label={caption}>
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">{caption}</caption>
-        <thead className="sticky top-0 z-10 bg-surface-2">
+        <thead className="sticky top-0 z-10 bg-surface-2/95 backdrop-blur-sm">
           <tr>
             {columns.map((column) => {
               const isSorted = active?.key === column.key;
@@ -78,9 +79,9 @@ export function DataTable<T>({ columns, rows, rowKey, caption, server, maxHeight
                             aria-label={`Sort by ${column.name ?? (typeof column.header === "string" ? column.header : column.key)}`}
                             className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-ink ${isSorted ? "text-ink" : ""} ${column.align === "right" ? "flex-row-reverse" : ""}`}>
                       {column.header}
-                      <span aria-hidden="true" className="text-[10px]">
-                        {isSorted ? (active!.order === "asc" ? "▲" : "▼") : "↕"}
-                      </span>
+                      {isSorted ? (active!.order === "asc" ? <ArrowUp className="size-3" aria-hidden="true" />
+                                                           : <ArrowDown className="size-3" aria-hidden="true" />)
+                                : <ArrowUpDown className="size-3 opacity-60" aria-hidden="true" />}
                     </button>
                   ) : column.header}
                 </th>

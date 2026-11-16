@@ -13,6 +13,10 @@
   FAIRLEND_SESSION_SECRET    session-signing secret. Locally, if unset, one is generated on first start into
                              <FAIRLEND_WEB_DATA>/session_secret.txt (git-ignored). Never commit it.
   FAIRLEND_SESSION_HOURS     how long a sign-in lasts (default 8)
+  FAIRLEND_PROXY_HOPS        trusted proxies in front of the API, for the visitor's address in X-Forwarded-For
+                             (default 0: use the connection address; Vercel in front of Render: 2)
+  FAIRLEND_REQUESTS_PER_HOUR access requests accepted per address per rolling hour (default 5)
+  FAIRLEND_MAX_PENDING       most access requests waiting for an Admin at once (default 50)
   FAIRLEND_COOKIE_SECURE     1 = send the session cookie over HTTPS only (always on with DATABASE_URL)
   LENDING_MONITOR_CONFIG     another config.yaml (the same variable the Streamlit app and the tests use)
 
@@ -63,6 +67,9 @@ class Settings:
     database_url: str | None = field(default=None, repr=False)   # never shown in a printout of the settings
     database_schema: str | None = None                            # tests only: a fresh Postgres schema per run
     cache_dir: Path | None = None
+    proxy_hops: int = 0
+    requests_per_hour: int = 5
+    max_pending: int = 50
 
     @property
     def backend(self) -> str:
@@ -102,4 +109,7 @@ def load_settings(environ: dict | None = None) -> Settings:
         database_url=(env.get("DATABASE_URL") or "").strip() or None,
         database_schema=(env.get("FAIRLEND_DATABASE_SCHEMA") or "").strip() or None,
         cache_dir=Path(cache_dir) if cache_dir else None,
+        proxy_hops=max(0, int(env.get("FAIRLEND_PROXY_HOPS", "0") or 0)),
+        requests_per_hour=max(1, int(env.get("FAIRLEND_REQUESTS_PER_HOUR", "5") or 5)),
+        max_pending=max(1, int(env.get("FAIRLEND_MAX_PENDING", "50") or 50)),
     )

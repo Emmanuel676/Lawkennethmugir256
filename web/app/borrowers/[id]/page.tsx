@@ -1,13 +1,17 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
+
+import { Button, buttonVariants } from "@/components/ui/button";
+
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { PointsChart } from "@/components/charts";
+import { PointsChart } from "@/components/charts-lazy";
 import { DataTable, type Column } from "@/components/DataTable";
 import {
   BandBadge, Card, EmptyState, ErrorState, KpiSkeletons, KpiTile, LoadingBlock, PageHeader, Pill, Term,
-} from "@/components/ui";
+} from "@/components/kit";
 import type { BorrowerDetail } from "@/lib/api";
 import { date, dateTime, int, pct, ratio, score, titleCase } from "@/lib/format";
 import { useDatasetApi } from "@/components/SessionProvider";
@@ -56,15 +60,14 @@ export default function BorrowerPage() {
   const { data, error, loading, reload } = useDatasetApi<BorrowerDetail>(`/api/borrowers/${encodeURIComponent(id)}`);
 
   const back = (
-    <button type="button" onClick={() => (window.history.length > 1 ? router.back() : router.push("/borrowers"))}
-            className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2">
-      ← Back to borrowers
-    </button>
+    <Button variant="outline" onClick={() => (window.history.length > 1 ? router.back() : router.push("/borrowers"))}>
+      <ArrowLeft aria-hidden="true" /> Back to borrowers
+    </Button>
   );
 
   return (
     <>
-      <PageHeader title={`Borrower ${id}`}
+      <PageHeader title={`Borrower ${id}`} lookingAt="one borrower's whole picture: their score and why, their loans at every lender, and the messages they received."
                   intro={data ? <>Region {data.region}. Loans with {data.lenders_involved} lender(s). This cross-lender view
                     is what no single lender can see.</> : undefined}>
         {back}

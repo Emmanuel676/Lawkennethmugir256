@@ -1,9 +1,11 @@
 "use client";
 
+import { Download as DownloadIcon } from "lucide-react";
+
 import { useState } from "react";
 
 import { DEMO, useDatasetApi, useSession } from "@/components/SessionProvider";
-import { Card, ChipGroup, ErrorState, Field, inputClass, LoadingBlock, PageHeader } from "@/components/ui";
+import { Card, ChipGroup, ErrorState, Field, inputClass, LoadingBlock, PageHeader } from "@/components/kit";
 import { apiUrl, type BandKey, type ExportSummary } from "@/lib/api";
 import { int } from "@/lib/format";
 
@@ -15,7 +17,7 @@ function Download({ href, label, name }: { href: string; label: string; name: st
   return (
     <a href={href} download={name}
        className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90">
-      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16" /></svg>
+      <DownloadIcon className="size-4" aria-hidden="true" />
       {label}
     </a>
   );
@@ -31,7 +33,7 @@ export default function ExportPage() {
 
   return (
     <>
-      <PageHeader title="Export"
+      <PageHeader title="Export" lookingAt="the same lists as files you can download, each starting with a notice line."
                   intro={<>The same downloads as the Streamlit Export page. Each file starts with one line beginning with
                     <code className="mx-1 rounded bg-surface-2 px-1">#</code> that carries the dataset notice. Read it with
                     <code className="mx-1 rounded bg-surface-2 px-1">pandas.read_csv(path, comment=&quot;#&quot;)</code>; in Excel the notice is the first row.</>} />

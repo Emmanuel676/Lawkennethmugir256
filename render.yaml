@@ -31,6 +31,8 @@ services:
         value: "1"                # the built-in dataset is the public demo
       - key: FAIRLEND_SESSION_HOURS
         value: "8"
+      - key: FAIRLEND_PROXY_HOPS
+        value: "2"                # Vercel + Render in front: the visitor's address for the access-request limit
       - key: DATABASE_URL
         sync: false
       - key: FAIRLEND_SESSION_SECRET

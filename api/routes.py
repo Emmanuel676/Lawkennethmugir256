@@ -17,7 +17,10 @@ from src.import_data import PERMISSION_TEXT
 
 from api import imports as importing
 from api import wording
-from api.accounts import NOT_RECOGNISED, ROLES, AccountError, User
+from api.access import client_address
+from api.accounts import (NOT_RECOGNISED, PENDING_MESSAGE, ROLES, USER_TYPES, AccountError, User, _text,
+                          normalise_email)
+from api.security import password_problem
 from api.audit import ACTIONS
 from api.data_source import IMPORTED_LABEL, UnknownDataset
 from api.deps import (COOKIE, Admin, Importer, Public, SameOrigin, Viewer, services)
@@ -49,6 +52,8 @@ def login(body: Credentials, request: Request, _: User | None = Public):
     if event == "locked_now":
         svc.audit.record(body.email.strip().lower()[:200], "login_locked",
                          detail={"minutes": svc.settings.lockout_minutes})
+    if event == "pending":  # only reached with the right password
+        return JSONResponse({"detail": PENDING_MESSAGE, "pending": True}, status_code=403)
     if user is None:
         return JSONResponse({"detail": NOT_RECOGNISED}, status_code=401)
     response = JSONResponse(_me(user))
@@ -64,6 +69,70 @@ def logout(request: Request, _: User | None = Public):
     response.delete_cookie(COOKIE, path="/", httponly=True, samesite="strict",
                            secure=services(request).settings.secure_cookies)
     return response
+
+
+# --- Request access (public, Phase 14) -------------------------------------------------------------------------------
+
+REQUEST_RECEIVED = ("Thank you. Your request has been received. An administrator will review it; no email is sent, so "
+                    "check back later and sign in once it is approved.")
+REQUESTS_PAUSED = "We are not taking new access requests right now. Please try again later."
+TOO_MANY = "Too many requests from this address. Please try again in an hour."
+
+
+class AccessRequest(BaseModel):
+    full_name: str = Field(default="", max_length=200)
+    email: str = Field(default="", max_length=200)
+    organisation: str = Field(default="", max_length=200)
+    user_type: str = Field(default="", max_length=40)
+    reason: str = Field(default="", max_length=1000)
+    password: str = Field(default="", max_length=500)
+    password_again: str = Field(default="", max_length=500)
+    website: str = Field(default="", max_length=500)  # honeypot: hidden from people, filled in by simple bots
+
+
+@router.get("/access-requests/options")
+def access_request_options(request: Request, _: User | None = Public):
+    return {"user_types": [{"key": k, "label": v} for k, v in USER_TYPES.items()],
+            "password_min_length": services(request).settings.password_min_length,
+            "limits": {"full_name": 100, "organisation": 120, "reason": 500}}
+
+
+@router.post("/access-requests", dependencies=[SameOrigin])
+def request_access(body: AccessRequest, request: Request, _: User | None = Public):
+    """Create a PENDING account. The answer is the same whether or not the email already has an account."""
+    svc = services(request)
+    if body.website.strip():
+        return {"message": REQUEST_RECEIVED}  # honeypot: looks accepted, nothing is stored
+    try:
+        # Check the form first (cheap, stores nothing), so a typo does not use up the address's allowance.
+        if body.password != body.password_again:
+            raise AccountError("The two passwords are different.")
+        _text(body.full_name, "full_name", "full name")
+        normalise_email(body.email)
+        _text(body.organisation, "organisation", "organisation")
+        _text(body.reason, "reason", "reason for access")
+        if body.user_type not in USER_TYPES:
+            raise AccountError("Choose the type of user.")
+        problem = password_problem(body.password, svc.settings.password_min_length)
+        if problem:
+            raise AccountError(problem)
+    except AccountError as error:
+        return _account_error(error)
+    if not svc.limiter.allow(client_address(request, svc.settings.proxy_hops)):
+        return JSONResponse({"detail": TOO_MANY}, status_code=429)
+    if svc.accounts.count_pending() >= svc.settings.max_pending:
+        return JSONResponse({"detail": REQUESTS_PAUSED}, status_code=503)
+    try:
+        svc.accounts.request_access(full_name=body.full_name, email=body.email, organisation=body.organisation,
+                                    user_type=body.user_type, reason=body.reason, password=body.password,
+                                    password_again=body.password_again)
+    except AccountError as error:
+        return _account_error(error)
+    return {"message": REQUEST_RECEIVED}
+
+
+class Approval(BaseModel):
+    role: str
 
 
 # --- Users (Admin) ---------------------------------------------------------------------------------------------------
@@ -89,8 +158,34 @@ def _account_error(error: AccountError) -> JSONResponse:
 
 @router.get("/users")
 def list_users(request: Request, _: User = Admin):
-    return {"users": [u.public() for u in services(request).accounts.list_users()], "roles": list(ROLES),
-            "password_min_length": services(request).settings.password_min_length}
+    svc = services(request)
+    return {"users": [u.public() for u in svc.accounts.list_users()], "roles": list(ROLES),
+            "pending": [u.public() for u in svc.accounts.list_pending()],
+            "password_min_length": svc.settings.password_min_length}
+
+
+@router.post("/users/{user_id}/approve", dependencies=[SameOrigin])
+def approve_request(user_id: int, body: Approval, request: Request, admin: User = Admin):
+    svc = services(request)
+    try:
+        user = svc.accounts.approve(user_id, body.role)
+    except AccountError as error:
+        return _account_error(error)
+    svc.audit.record(admin.email, "access_approve", user.email,
+                     {"role": user.role, "organisation": user.organisation, "user_type": user.user_type})
+    return user.public()
+
+
+@router.post("/users/{user_id}/reject", dependencies=[SameOrigin])
+def reject_request(user_id: int, request: Request, admin: User = Admin):
+    svc = services(request)
+    try:
+        user = svc.accounts.reject(user_id)
+    except AccountError as error:
+        return _account_error(error)
+    svc.audit.record(admin.email, "access_reject", user.email,
+                     {"organisation": user.organisation, "user_type": user.user_type})
+    return {"rejected": user.email, "message": f"The request from {user.email} was rejected and deleted."}
 
 
 @router.post("/users", dependencies=[SameOrigin])

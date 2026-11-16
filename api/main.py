@@ -54,7 +54,9 @@ def build_services(settings: Settings, source: DataSource) -> Services:
                             session_hours=settings.session_hours, max_attempts=settings.max_login_attempts,
                             lockout_minutes=settings.lockout_minutes,
                             password_min_length=settings.password_min_length)
-    return Services(settings=settings, sources=sources, accounts=accounts, audit=AuditLog(db))
+    from api.access import RequestLimiter
+    return Services(settings=settings, sources=sources, accounts=accounts, audit=AuditLog(db),
+                    limiter=RequestLimiter(settings.requests_per_hour))
 
 
 def _copy(cfg: dict) -> dict:
