@@ -52,16 +52,29 @@ for (const theme of ["light", "dark"] as const) {
     test(`landing page, ${size.name}, ${theme} theme`, async ({ page }) => {
       await page.setViewportSize({ width: size.width, height: size.height });
       await page.goto(`/?theme=${theme}`);
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("One view across lenders");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fair lending needs the whole picture.");
+      await expect(page.getByText("Lending conduct monitor · prototype")).toBeVisible();
       await expect(page.getByRole("link", { name: /Explore the demo/ }).first()).toHaveAttribute("href", "/overview");
       await expect(page.getByRole("link", { name: "Request access" }).first()).toHaveAttribute("href", "/request-access");
+      for (const point of ["No names stored", "Every flag explained", "A human decides"]) {
+        await expect(page.getByText(point, { exact: true }).first()).toBeVisible();
+      }
       for (const heading of ["Each lender sees only its own loans.", "Four steps, and a person at the end.",
-                             "What the demo shows right now.", "Built for the people who look after fair lending.",
-                             "Privacy and fairness are part of the design."]) {
+                             "Built for the people who look after fair lending.", "Privacy and fairness are part of the design."]) {
         await expect(page.getByRole("heading", { name: heading })).toBeAttached();
       }
-      await page.getByRole("heading", { name: "What the demo shows right now." }).scrollIntoViewIfNeeded();
-      await expect(page.locator("#preview").getByText("Borrowers scored")).toBeVisible();
+      for (const title of ["Several loans at once", "Borrowing to repay", "Harsh collection"]) {
+        await expect(page.getByRole("heading", { name: title })).toBeAttached();
+      }
+      // The product preview reads its numbers from the API: the full frame on a desktop, a simpler card on a phone.
+      const preview = page.getByTestId(size.name === "phone" ? "hero-preview-compact" : "hero-preview");
+      await expect(preview).toBeVisible();
+      await expect(preview.getByText("Borrowers scored")).toBeVisible();
+      await expect(preview.getByText("5,000").first()).toBeVisible();
+      if (size.name === "desktop") await expect(preview.getByText("Highest-scoring borrowers")).toBeVisible();
+      // The stats band: the first two figures come from the API.
+      await expect(page.getByRole("term").filter({ hasText: "demonstration lenders compared" })).toBeAttached();
+      await expect(page.getByRole("term").filter({ hasText: "signals behind every score" })).toBeAttached();
       await expect(page.getByText("Demonstration data. A flag is a prompt for a human to look, not a verdict.").first()).toBeVisible();
       await page.waitForLoadState("networkidle");
       const wide = await page.evaluate(() => document.documentElement.scrollWidth);
